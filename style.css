@@ -1,0 +1,306 @@
+/* Importação de fontes (Montserrat) */
+body {
+    font-family: 'Montserrat', sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+    color: #333; /* Cor de texto padrão com bom contraste */
+}
+
+/* Base de Acessibilidade */
+:focus {
+    outline: 3px solid #0056b3; /* Foco visível para navegação por teclado */
+    outline-offset: 2px;
+}
+
+a {
+    color: #0056b3; /* Cor de link com bom contraste */
+    text-decoration: none;
+}
+
+a:hover, a:focus {
+    text-decoration: underline;
+}
+
+/* Layout Responsivo e Contêiner */
+.container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Cabeçalho */
+header {
+    background-color: #003366; /* Azul escuro */
+    color: #ffffff;
+    padding: 1rem 0;
+    text-align: center;
+}
+
+.site-title {
+    margin: 0;
+    font-size: 2.5em; /* Tamanho bom para acessibilidade */
+    font-weight: 700;
+}
+
+.site-subtitle {
+    margin: 0.5em 0 0;
+    font-size: 1.2em;
+    font-weight: 400;
+}
+
+/* Seções Gerais */
+section {
+    padding: 40px 0;
+    text-align: center;
+}
+
+section:nth-of-type(even) { /* Cor de fundo para seções alternadas */
+    background-color: #e9e9e9;
+}
+
+.section-title {
+    font-size: 2em;
+    margin-bottom: 20px;
+    color: #003366;
+}
+
+.section-description {
+    font-size: 1.1em;
+    margin-bottom: 30px;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Botões */
+.btn {
+    display: inline-block;
+    padding: 12px 25px;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+    border: none;
+    cursor: pointer;
+    font-size: 1em;
+}
+
+.btn-primary {
+    background-color: #0056b3; /* Azul médio */
+    color: #ffffff;
+}
+
+.btn-primary:hover, .btn-primary:focus {
+    background-color: #004085; /* Azul mais escuro no hover/focus */
+}
+
+.btn-secondary {
+    background-color: #6c757d; /* Cinza */
+    color: #ffffff;
+}
+
+.btn-secondary:hover, .btn-secondary:focus {
+    background-color: #5a6268;
+}
+
+/* Seção Hero */
+.hero-section {
+    background-color: #f8f9fa; /* Um tom de branco */
+    padding: 60px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: left;
+}
+
+.hero-content {
+    flex: 1;
+    padding-right: 20px;
+}
+
+.hero-title {
+    font-size: 2.8em;
+    color: #003366;
+    margin-top: 0;
+}
+
+.hero-description {
+    font-size: 1.3em;
+    margin-bottom: 30px;
+    line-height: 1.5;
+}
+
+.hero-image {
+    flex: 1;
+    text-align: center;
+    padding-left: 20px;
+}
+
+.profile-pic {
+    max-width: 80%; /* Ajuste o tamanho da imagem */
+    height: auto;
+    border-radius: 8px; /* Cantos arredondados */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Seção Sobre / Conteúdo Geral */
+.about-content p {
+    text-align: left;
+    margin-bottom: 1em;
+    font-size: 1.1em;
+}
+
+.about-content .btn {
+    margin-top: 20px;
+}
+
+/* Seção de Serviços / Por que Acessibilidade */
+.service-points, .why-points {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 30px;
+}
+
+.service-item, .why-item {
+    background-color: #ffffff;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    flex: 1;
+    min-width: 280px; /* Largura mínima para os itens */
+    max-width: 45%; /* Duas colunas em telas maiores */
+    text-align: left;
+}
+
+.service-item h3, .why-item h3 {
+    color: #003366;
+    margin-top: 0;
+    font-size: 1.4em;
+}
+
+.report-example {
+    margin-top: 50px;
+    text-align: center;
+}
+
+.report-example img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.report-example p {
+    margin-top: 15px;
+    font-size: 1.1em;
+    color: #555;
+}
+
+/* Seção de Contato */
+.contact-form {
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    max-width: 600px;
+    margin: 30px auto;
+    text-align: left;
+}
+
+.contact-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+}
+
+.contact-form input[type="text"],
+.contact-form input[type="email"],
+.contact-form input[type="tel"],
+.contact-form textarea {
+    width: calc(100% - 20px); /* Ajuste para padding */
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+}
+
+.contact-form textarea {
+    resize: vertical; /* Permite redimensionar verticalmente */
+}
+
+.contact-form button {
+    width: 100%;
+    padding: 12px;
+    font-size: 1.1em;
+}
+
+.direct-contact {
+    margin-top: 30px;
+    font-size: 1.1em;
+}
+
+.direct-contact p {
+    margin-bottom: 10px;
+}
+
+/* Rodapé */
+footer {
+    background-color: #003366;
+    color: #ffffff;
+    padding: 1.5rem 0;
+    text-align: center;
+    font-size: 0.9em;
+}
+
+footer a {
+    color: #ffffff;
+    margin: 0 10px;
+}
+
+footer a:hover, footer a:focus {
+    text-decoration: underline;
+}
+
+/* Responsividade para telas menores */
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+    }
+
+    .site-title {
+        font-size: 2em;
+    }
+
+    .site-subtitle {
+        font-size: 1em;
+    }
+
+    .hero-section {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .hero-content, .hero-image {
+        padding: 0;
+        margin-bottom: 30px;
+    }
+
+    .hero-title {
+        font-size: 2.2em;
+    }
+
+    .hero-description {
+        font-size: 1.1em;
+    }
+
+    .service-item, .why-item {
+        max-width: 100%; /* Uma coluna em telas menores */
+    }
+}
