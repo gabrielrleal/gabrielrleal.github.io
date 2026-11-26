@@ -254,3 +254,4 @@ export function downloadStoryCard(reading) {
   } catch (err) {
     showToast('Não foi possível baixar a imagem neste navegador.');
   }
+}

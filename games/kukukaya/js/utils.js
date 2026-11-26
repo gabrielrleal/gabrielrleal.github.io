@@ -20,7 +20,7 @@ export function vibrateMobile(pattern = 90) {
   }
 }
 
-async function requestWakeLock() {
+export async function requestWakeLock() {
   if ('wakeLock' in navigator) {
     try { await navigator.wakeLock.request('screen'); } catch (e) {}
   }
@@ -131,3 +131,4 @@ export const Typewriter = {
       i++;
     }, speedMs);
   }
+};

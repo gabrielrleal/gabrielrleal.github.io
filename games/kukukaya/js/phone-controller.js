@@ -1,6 +1,6 @@
 import { WITCH_CARDS, DESTINY_SEALS } from './data.js';
 import { SoundFX } from './sound.js';
-import { showToast, vibrateMobile, escapeHtml } from './utils.js';
+import { showToast, vibrateMobile, requestWakeLock, escapeHtml } from './utils.js';
 import { downloadStoryCard } from './story-card.js';
 
 export const Phone = {

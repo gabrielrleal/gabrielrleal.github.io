@@ -135,3 +135,4 @@ export const SoundFX = {
     osc.start(now);
     osc.stop(now + 0.06);
   },
+};

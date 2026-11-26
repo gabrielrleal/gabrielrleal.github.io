@@ -249,3 +249,5 @@ export const BOT_ENDS = [
   'todo mundo na sala já sabia disso desde o carnaval passado.',
   'até o Wi-Fi caiu de vergonha alheia na mesma hora.'
 ];
+
+export const STEP_DURATION = 45;

@@ -792,3 +792,4 @@ export const TV = {
     this.setPhase('lobby');
     this.startRound();
   }
+};
