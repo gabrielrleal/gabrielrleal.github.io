@@ -1,0 +1,10 @@
+[
+  {
+    "id": "kukukaya",
+    "title": "Kukukaya",
+    "description": "O jogo da bruxa: cartas, perguntas secretas e improviso coletivo.",
+    "icon": "🔮",
+    "path": "./games/kukukaya/index.html",
+    "enabled": true
+  }
+]
