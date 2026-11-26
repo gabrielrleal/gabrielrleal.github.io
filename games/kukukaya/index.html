@@ -1,0 +1,2953 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Kukukaya: O Jogo da Bruxa</title>
+
+  <!-- Estilos locais compilados para o módulo; sem CDN nem fontes externas -->
+  <link rel="stylesheet" href="./tailwind.local.css">
+
+  <!-- PeerJS & QRCode locais: sem CDN e sem bloquear a renderização inicial -->
+  <script src="./vendor/peerjs.min.js" defer></script>
+  <script src="./vendor/qrcode.min.js" defer></script>
+
+  <style>
+    :root {
+      --bg-night: #090b14;
+      --bg-table: #101322;
+      --bone: #f4ecd8;
+      --ink: #161210;
+      --crimson: #8f1d20;
+      --crimson-dark: #4a0c0e;
+      --gold: #d4af37;
+      --gold-soft: rgba(212, 175, 55, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-night);
+      color: var(--bone);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      margin: 0;
+      overflow-x: hidden;
+      background-image:
+        radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.11) 0%, transparent 48%),
+        radial-gradient(circle at 85% 85%, rgba(143, 29, 32, 0.16) 0%, transparent 45%),
+        radial-gradient(circle at 15% 75%, rgba(24, 34, 68, 0.25) 0%, transparent 45%),
+        repeating-linear-gradient(0deg, rgba(244, 236, 216, 0.015) 0px, rgba(244, 236, 216, 0.015) 1px, transparent 1px, transparent 4px);
+    }
+
+    .font-ritual { font-family: 'Cinzel Decorative', Georgia, serif; }
+    .font-tarot { font-family: 'Cinzel', Georgia, serif; }
+    .font-serif-drama { font-family: 'Playfair Display', Georgia, serif; }
+    .font-mono-code { font-family: 'Space Mono', monospace; }
+
+    /* Moldura Xilogravura */
+    .xilo-frame {
+      position: relative;
+      border: 2px solid var(--gold);
+      box-shadow:
+        0 0 0 4px var(--bg-night),
+        0 0 0 5px var(--gold-soft),
+        0 18px 40px rgba(0, 0, 0, 0.65);
+    }
+
+    .xilo-card-tarot {
+      background: linear-gradient(165deg, #141a31 0%, #0b0e1b 100%);
+      border: 2px solid var(--gold);
+      box-shadow:
+        inset 0 0 0 5px #0b0e1b,
+        inset 0 0 0 6px rgba(212, 175, 55, 0.5),
+        0 16px 36px rgba(0, 0, 0, 0.72);
+    }
+
+    .xilo-card-witch {
+      background: radial-gradient(circle at 50% 35%, #9c2023 0%, #6b1215 68%, #3c080a 100%);
+      border: 2px solid var(--gold);
+      box-shadow:
+        inset 0 0 0 5px #3c080a,
+        inset 0 0 0 6px rgba(244, 236, 216, 0.65),
+        0 16px 38px rgba(143, 29, 32, 0.5);
+    }
+
+    .xilo-card-destiny {
+      background: radial-gradient(circle at 50% 30%, #faf4e6 0%, #f1e4c6 72%, #e3d1a8 100%);
+      color: var(--ink);
+      border: 2px solid #2b2118;
+      box-shadow:
+        inset 0 0 0 5px #f4ecd8,
+        inset 0 0 0 7px #1d1712,
+        0 16px 36px rgba(0, 0, 0, 0.68);
+    }
+
+    /* =========================================================================
+       CARTAS DE TARÔ 3D UNIFORMES (PROPORÇÃO CLÁSSICA 2:3)
+    ========================================================================= */
+    .tarot-stage {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: clamp(12px, 2.6vw, 34px);
+      perspective: 1400px;
+      width: 100%;
+    }
+
+    .tarot-slot {
+      width: clamp(112px, 26vw, 224px);
+      aspect-ratio: 2 / 3;
+      perspective: 1200px;
+      flex-shrink: 0;
+    }
+
+    .tarot-card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      will-change: transform;
+      transition: transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+      border-radius: 14px;
+    }
+
+    .tarot-slot.is-flipped .tarot-card-inner {
+      transform: rotateY(180deg);
+    }
+
+    .tarot-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 14px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: clamp(10px, 1.5vw, 18px) clamp(8px, 1.2vw, 14px);
+      text-align: center;
+    }
+
+    .tarot-face-front {
+      transform: rotateY(180deg);
+    }
+
+    /* Verso Místico em Xilogravura */
+    .tarot-face-back {
+      background:
+        radial-gradient(circle at 50% 50%, rgba(212, 175, 55, 0.14) 0%, transparent 62%),
+        repeating-linear-gradient(45deg, rgba(212, 175, 55, 0.05) 0px, rgba(212, 175, 55, 0.05) 1px, transparent 1px, transparent 10px),
+        linear-gradient(160deg, #13182e 0%, #090c17 100%);
+      border: 2px solid var(--gold);
+      box-shadow:
+        inset 0 0 0 6px #090c17,
+        inset 0 0 0 7px rgba(212, 175, 55, 0.55),
+        0 14px 32px rgba(0, 0, 0, 0.7);
+    }
+
+    /* Cantoneiras ornamentadas nas cartas */
+    .tarot-corner {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-color: currentColor;
+      opacity: 0.65;
+      pointer-events: none;
+    }
+    .tarot-corner.tl { top: 10px; left: 10px; border-top: 2px solid; border-left: 2px solid; }
+    .tarot-corner.tr { top: 10px; right: 10px; border-top: 2px solid; border-right: 2px solid; }
+    .tarot-corner.bl { bottom: 10px; left: 10px; border-bottom: 2px solid; border-left: 2px solid; }
+    .tarot-corner.br { bottom: 10px; right: 10px; border-bottom: 2px solid; border-right: 2px solid; }
+
+    /* Destaque leve na carta que acabou de virar (evita filter: drop-shadow pesado em TVs) */
+    @keyframes tarotGlow {
+      0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
+      45% { box-shadow: 0 0 22px 4px rgba(212, 175, 55, 0.55); }
+      100% { box-shadow: 0 0 8px 1px rgba(212, 175, 55, 0.22); }
+    }
+    .tarot-slot.just-flipped .tarot-card-inner {
+      animation: tarotGlow 1.1s ease-out forwards;
+    }
+
+    /* Foco visível para navegação por controle remoto (TV) */
+    button:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible {
+      outline: 3px solid var(--bone);
+      outline-offset: 4px;
+    }
+
+    /* Cursor piscante de pena/estrela da Bruxa */
+    @keyframes blinkCursor {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+    .witch-cursor {
+      display: inline-block;
+      margin-left: 4px;
+      color: var(--gold);
+      animation: blinkCursor 0.75s infinite;
+    }
+
+    /* Botões */
+    .btn-gold {
+      background: linear-gradient(180deg, #e5c358 0%, #b99124 100%);
+      color: #120f08;
+      font-weight: 700;
+      border: 1px solid #f7e296;
+      box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+    .btn-gold:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+    .btn-gold:active:not(:disabled) { transform: scale(0.98); }
+    .btn-gold:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .btn-crimson {
+      background: linear-gradient(180deg, #b83335 0%, #7d191b 100%);
+      color: var(--bone);
+      font-weight: 700;
+      border: 1px solid rgba(212, 175, 55, 0.6);
+      box-shadow: 0 4px 16px rgba(143, 29, 32, 0.45);
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+    .btn-crimson:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn-crimson:active:not(:disabled) { transform: scale(0.98); }
+
+    .btn-ghost {
+      background: rgba(244, 236, 216, 0.06);
+      color: var(--bone);
+      border: 1px solid rgba(212, 175, 55, 0.35);
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .btn-ghost:hover:not(:disabled) {
+      background: rgba(212, 175, 55, 0.14);
+      border-color: var(--gold);
+    }
+
+    /* Seletor de Selos no Celular */
+    .seal-btn {
+      background: rgba(244, 236, 216, 0.06);
+      border: 1.5px solid rgba(212, 175, 55, 0.3);
+      transition: all 0.15s ease;
+    }
+    .seal-btn.selected {
+      background: #f4ecd8;
+      color: #161210;
+      border-color: #d4af37;
+      box-shadow: 0 0 14px rgba(212, 175, 55, 0.45);
+      transform: scale(1.04);
+    }
+
+    /* Lua estática em baixa opacidade para poupar GPU em Smart TVs */
+    .animate-moon { opacity: 0.18; }
+
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .anim-fade { animation: fadeSlideUp 0.4s ease forwards; }
+
+    /* QR Code */
+    #card2-svg, #card3-svg {
+      font-size: clamp(48px, 7vw, 82px);
+      line-height: 1;
+      text-align: center;
+    }
+
+    #phone-s3-bridge-svg {
+      font-size: 38px;
+      line-height: 1;
+      text-align: center;
+    }
+
+    #tv-qrcode img, #tv-qrcode canvas {
+      margin: 0 auto;
+      border-radius: 8px;
+      border: 6px solid var(--bone);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.55);
+    }
+
+    /* Toast */
+    #toast-container {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: min(92vw, 430px);
+      pointer-events: none;
+    }
+    .toast-msg {
+      background: #171c32;
+      color: var(--bone);
+      border: 1px solid var(--gold);
+      border-left: 5px solid var(--crimson);
+      padding: 12px 16px;
+      border-radius: 10px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.65);
+      font-size: 0.9rem;
+      pointer-events: auto;
+      animation: fadeSlideUp 0.25s ease;
+    }
+
+    /* TV safe layout: evita sobreposição e mantém todos os elementos na viewport */
+    #screen-tv {
+      height: 100vh;
+      height: 100dvh;
+      min-height: 0;
+      overflow: hidden;
+    }
+    #screen-tv > header { flex: 0 0 auto; }
+    #screen-tv > [id^="tv-view-"] { min-height: 0; overflow: hidden; }
+    #tv-view-reveal {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr) 210px;
+      height: 100%;
+      min-width: 0;
+      gap: clamp(6px, 1vh, 12px);
+      padding-top: clamp(6px, 1vh, 12px);
+      padding-bottom: clamp(6px, 1vh, 12px);
+    }
+    #tv-view-reveal > div { min-width: 0; }
+    #tv-view-reveal .tarot-stage {
+      min-height: 0;
+      min-width: 0;
+      height: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    #tv-view-reveal .tarot-slot {
+      height: 100%;
+      max-height: 336px;
+      width: auto;
+      max-width: 224px;
+      aspect-ratio: 2 / 3;
+    }
+    #tv-view-reveal > div:last-child {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      max-height: none;
+      align-self: stretch;
+      overflow: hidden;
+    }
+    #tv-interpretation-box {
+      display: -webkit-box;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      overflow: hidden;
+      overflow-wrap: anywhere;
+      word-break: normal;
+    }
+    #tv-view-reveal > div:last-child > div:first-child { min-width: 0; min-height: 0; overflow: hidden; }
+    #tv-view-reveal > div:last-child > div:last-child { min-height: 52px; }
+
+    @media (max-width: 700px) {
+      #tv-view-reveal .tarot-stage { gap: clamp(4px, 2vw, 10px); }
+      #tv-view-reveal .tarot-slot {
+        width: 28vw;
+        height: auto;
+        max-width: 118px;
+        max-height: 177px;
+        flex: 0 1 28vw;
+      }
+      #tv-interpretation-box {
+        font-size: 16px;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+      }
+    }
+
+    @media (max-height: 850px) {
+      #screen-tv { padding: 10px 14px; }
+      #screen-tv > header { padding-bottom: 6px; }
+      #screen-tv > header h1 { font-size: 18px; }
+      #tv-view-reveal { gap: 5px; grid-template-rows: auto minmax(0, 1fr) 165px; }
+      #tv-view-reveal .tarot-slot { max-height: 224px; }
+      #tv-view-reveal .tarot-face { padding: 8px 7px; }
+      #tv-view-reveal > div:nth-child(1) .xilo-frame { padding-top: 6px; padding-bottom: 6px; }
+      #tv-view-reveal > div:last-child .xilo-frame { min-height: 0; padding-top: 6px; padding-bottom: 6px; }
+      #tv-interpretation-box { font-size: 16px; line-height: 1.25; -webkit-line-clamp: 2; line-clamp: 2; }
+      #tv-view-reveal > div:last-child > div:last-child { padding-top: 5px; }
+      #tv-view-reveal > div:last-child button { padding-top: 8px; padding-bottom: 8px; }
+      #tv-view-voting, #tv-view-results { padding-top: 4px; padding-bottom: 4px; }
+      #tv-view-voting > div:first-child { margin-bottom: 6px; }
+      #tv-view-voting > div:first-child h2 { margin-top: 2px; font-size: 22px; }
+      #tv-voting-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+      #tv-view-results { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; }
+      #tv-view-results > div { margin-bottom: 4px; }
+      #tv-view-results > div:first-child > .text-4xl { display: none; }
+      #tv-view-results > div:first-child h2 { font-size: 20px; }
+      #tv-winner-banner { margin-top: 2px; padding: 5px 10px; }
+      #tv-scoreboard { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+      #tv-scoreboard > div { padding: 5px; }
+      #tv-scoreboard > div > div { margin-top: 2px; }
+      #tv-gallery { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+      #tv-gallery > div { min-height: 0; padding: 6px; }
+      #tv-gallery p { display: none; }
+      #btn-new-round { padding: 6px 16px; font-size: 13px; }
+    }
+
+    @media (min-width: 3000px) and (min-height: 1800px) {
+      #screen-tv { max-width: 2200px; }
+      #tv-view-reveal .tarot-slot { max-height: 336px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+    }
+
+    #screen-phone {
+      height: 100dvh;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    #screen-phone [id^="phone-view-"] {
+      min-height: 0;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body class="selection:bg-amber-500/30 selection:text-amber-100">
+
+  <!-- Lua Cheia Xilogravura ao Fundo -->
+  <div class="fixed inset-0 pointer-events-none overflow-hidden z-0 flex justify-center items-start">
+    <svg class="w-[520px] h-[520px] -mt-40 animate-moon" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="100" cy="100" r="72" fill="#f4ecd8" fill-opacity="0.1" stroke="#d4af37" stroke-width="0.8" stroke-dasharray="3 3"/>
+      <circle cx="100" cy="100" r="56" fill="#f4ecd8" fill-opacity="0.14" stroke="#f4ecd8" stroke-width="0.6"/>
+      <path d="M100 8 L100 24 M100 176 L100 192 M8 100 L24 100 M176 100 L192 100 M35 35 L47 47 M153 153 L165 165 M165 35 L153 47 M47 153 L35 165" stroke="#d4af37" stroke-width="1" stroke-linecap="round"/>
+      <circle cx="82" cy="86" r="10" fill="#090b14" fill-opacity="0.22"/>
+      <circle cx="118" cy="112" r="14" fill="#090b14" fill-opacity="0.18"/>
+    </svg>
+  </div>
+
+  <!-- Notificações -->
+  <div id="toast-container" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Modal Discreto: Configurar Link Público do Site (para Google Sites / iframe) -->
+  <div id="modal-url-config" class="hidden fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-url-title">
+    <div class="xilo-frame rounded-2xl bg-[#111527] max-w-md w-full p-6 anim-fade">
+      <h3 id="modal-url-title" class="font-ritual text-xl text-amber-300 mb-1">Link Público do Site</h3>
+      <p class="text-xs text-[#f4ecd8]/75 mb-4 leading-relaxed">
+        Como o jogo está rodando dentro de um iframe (ex: Google Sites) ou arquivo local, cole abaixo o link público onde você publicou o jogo para o QR Code apontar direto para lá.
+      </p>
+      <label for="input-custom-url" class="block text-[11px] font-mono-code uppercase text-amber-200/85 mb-1">URL do Site</label>
+      <input id="input-custom-url" type="url" placeholder="https://sites.google.com/view/seu-jogo"
+        class="w-full rounded-xl bg-[#090b14] border border-amber-500/45 px-3 py-2.5 text-sm text-[#f4ecd8] focus:outline-none focus:border-amber-300 mb-4">
+      <div class="flex gap-2 justify-end">
+        <button id="btn-cancel-url" class="btn-ghost px-4 py-2 rounded-lg text-xs cursor-pointer">Cancelar</button>
+        <button id="btn-save-url" class="btn-gold px-4 py-2 rounded-lg text-xs cursor-pointer">Salvar e Atualizar QR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       TELA 0: ESCOLHA DE MODO (LANDING)
+  ========================================================== -->
+  <main id="screen-landing" class="relative z-10 min-h-screen flex flex-col items-center justify-center p-5">
+    <div class="max-w-xl w-full text-center anim-fade">
+      <div class="inline-flex items-center gap-2 px-4 py-1 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs tracking-[0.22em] uppercase mb-4 font-mono-code">
+        <span>🌙</span> Tarô de Improviso • 4 Jogadores
+      </div>
+
+      <h1 class="font-ritual text-4xl sm:text-6xl text-[#f4ecd8] tracking-wider drop-shadow-[0_4px_14px_rgba(212,175,55,0.35)]">
+        KUKUKAYA
+      </h1>
+      <p class="font-serif-drama italic text-lg sm:text-xl text-amber-300/90 mt-1 mb-8">
+        O Jogo da Bruxa
+      </p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <button id="btn-choose-tv" class="xilo-card-tarot rounded-2xl p-6 text-left hover:scale-[1.02] transition-transform cursor-pointer group">
+          <div class="text-4xl mb-3">📺</div>
+          <h2 class="font-serif-drama text-xl text-amber-300 font-bold group-hover:text-amber-200">
+            Abrir Mesa na TV
+          </h2>
+          <p class="text-sm text-[#f4ecd8]/75 mt-1 leading-relaxed">
+            Crie a sala, exiba o QR Code e revele as 3 cartas de tarô em 3 tempos.
+          </p>
+          <div class="mt-4 text-xs font-mono-code uppercase tracking-wider text-amber-400">
+            Modo Host (TV / PC) →
+          </div>
+        </button>
+
+        <button id="btn-choose-phone" class="xilo-card-witch rounded-2xl p-6 text-left hover:scale-[1.02] transition-transform cursor-pointer group">
+          <div class="text-4xl mb-3">📱</div>
+          <h2 class="font-serif-drama text-xl text-[#f4ecd8] font-bold">
+            Entrar pelo Celular
+          </h2>
+          <p class="text-sm text-[#f4ecd8]/85 mt-1 leading-relaxed">
+            Digite o código da sala para forjar cartas, fazer sua pergunta secreta e votar.
+          </p>
+          <div class="mt-4 text-xs font-mono-code uppercase tracking-wider text-amber-300">
+            Modo Jogador →
+          </div>
+        </button>
+      </div>
+
+      <p class="text-xs text-[#f4ecd8]/50 mt-8 max-w-md mx-auto">
+        100% P2P via PeerJS sem servidor central. Para testar sozinho agora, abra a <strong>Mesa na TV</strong> e clique em <em>Preencher com Bots</em>.
+      </p>
+    </div>
+  </main>
+
+  <!-- =========================================================
+       MODO TV (HOST)
+  ========================================================== -->
+  <section id="screen-tv" class="hidden relative z-10 min-h-screen flex flex-col p-4 sm:p-6 max-w-7xl mx-auto">
+    <!-- Top Bar TV -->
+    <header class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-amber-500/25">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">🔮</span>
+        <div>
+          <h1 class="font-ritual text-xl sm:text-2xl text-amber-300 leading-none">KUKUKAYA</h1>
+          <span id="tv-round-badge" class="text-xs font-mono-code text-[#f4ecd8]/65 uppercase tracking-widest">
+            Rodada 1 • Mesa da Bruxa
+          </span>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="px-3 py-1.5 rounded-lg bg-[#131729] border border-amber-500/40 font-mono-code text-sm">
+          SALA: <strong id="tv-room-code-header" class="text-amber-300 tracking-widest">----</strong>
+        </div>
+        <button id="btn-toggle-sound" class="btn-ghost px-3 py-1.5 rounded-lg text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer">
+          <span id="sound-icon">🥁</span> Som: ON
+        </button>
+        <button id="btn-back-central" class="btn-ghost px-3 py-1.5 rounded-lg text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer" title="Voltar à central">
+          <span aria-hidden="true">←</span> Central
+        </button>
+      </div>
+    </header>
+
+    <!-- TV VIEW 1: LOBBY -->
+    <div id="tv-view-lobby" class="flex-1 flex flex-col justify-center py-6 anim-fade">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+        <!-- QR Code & Código -->
+        <div class="lg:col-span-5 xilo-frame rounded-2xl bg-[#101424]/95 p-6 text-center">
+          <p class="font-mono-code text-xs uppercase tracking-[0.2em] text-amber-300/90 mb-2">
+            Aponte a câmera do celular
+          </p>
+          <div id="tv-qrcode" class="my-4 flex justify-center min-h-[190px] items-center">
+            <span class="text-xs text-amber-200/60 font-mono-code">Gerando portal P2P...</span>
+          </div>
+          <div class="mt-2">
+            <p class="text-xs uppercase tracking-widest text-[#f4ecd8]/60">Código da Sala</p>
+            <div id="tv-room-code-big" class="font-mono-code text-4xl sm:text-5xl font-bold tracking-[0.25em] text-amber-300 mt-1">
+              ----
+            </div>
+          </div>
+
+          <div class="mt-4 flex flex-wrap justify-center gap-2">
+            <button id="btn-copy-link" class="btn-ghost px-3 py-2 rounded-lg text-xs font-mono-code cursor-pointer">
+              📋 Copiar link da sala
+            </button>
+            <button id="btn-config-url" class="hidden btn-ghost px-3 py-2 rounded-lg text-xs font-mono-code cursor-pointer text-amber-300 border-amber-400/50">
+              ⚙️ Configurar link do site
+            </button>
+          </div>
+          <p id="tv-qr-hint" class="text-[11px] font-mono-code text-[#f4ecd8]/55 mt-2 break-all px-2"></p>
+          <p id="tv-peer-status" class="text-[11px] font-mono-code text-emerald-400/90 mt-2">
+            Conectando à rede PeerJS...
+          </p>
+        </div>
+
+        <!-- 4 Espaços do Círculo -->
+        <div class="lg:col-span-7 flex flex-col gap-5">
+          <div>
+            <h2 class="font-serif-drama text-2xl sm:text-3xl text-[#f4ecd8]">
+              Círculo dos 4 Jogadores
+            </h2>
+            <p class="text-sm text-[#f4ecd8]/70 mt-1">
+              Cada jogador forja uma carta, escreve um início, sela um destino e recebe uma leitura de tarô secreta feita pelos outros 3.
+            </p>
+          </div>
+
+          <div id="tv-lobby-slots" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <!-- Slots via JS -->
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3 pt-2">
+            <button id="btn-start-ritual" disabled class="btn-gold px-6 py-3.5 rounded-xl text-base flex-1 sm:flex-none cursor-pointer">
+              🕯️ Começar Ritual (0/4)
+            </button>
+            <button id="btn-fill-bots" class="btn-crimson px-5 py-3.5 rounded-xl text-sm cursor-pointer">
+              🤖 Preencher com Bots (Teste Rápido)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TV VIEW 2: PASSOS 1, 2 e 3 (ESCRITA) -->
+    <div id="tv-view-writing" class="hidden flex-1 flex flex-col items-center justify-center py-6 text-center anim-fade">
+      <div class="inline-block px-4 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 font-mono-code text-xs uppercase tracking-[0.2em] mb-3" id="tv-step-tag">
+        Passo 1 de 4
+      </div>
+      <h2 id="tv-step-title" class="font-ritual text-3xl sm:text-5xl text-[#f4ecd8] mb-2">
+        O Presságio
+      </h2>
+      <p id="tv-step-desc" class="font-serif-drama italic text-lg sm:text-xl text-amber-200/85 max-w-2xl mb-8">
+        Olhem para os celulares!
+      </p>
+
+      <div class="relative w-32 h-32 rounded-full border-4 border-amber-500/30 flex items-center justify-center mb-8 bg-[#121629] shadow-[0_0_30px_rgba(212,175,55,0.18)]">
+        <span id="tv-timer-display" class="font-mono-code text-4xl font-bold text-amber-300">45</span>
+        <span class="absolute -bottom-3 bg-[#090b14] px-2 text-[10px] font-mono-code uppercase tracking-widest text-[#f4ecd8]/60">seg</span>
+      </div>
+
+      <div id="tv-writing-status" class="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-3xl">
+        <!-- Status via JS -->
+      </div>
+    </div>
+
+    <!-- =========================================================
+         TV VIEW 3: MESA DA BRUXA — 3 CARTAS 2:3 + INTERPRETAÇÃO UNIFICADA
+    ========================================================== -->
+    <div id="tv-view-reveal" class="hidden flex-1 flex flex-col justify-between py-3 gap-4 anim-fade">
+      <!-- TOPO: Pergunta Secreta -->
+      <div class="text-center max-w-4xl mx-auto w-full">
+        <div class="inline-flex items-center gap-2 text-[11px] sm:text-xs font-mono-code uppercase tracking-[0.22em] text-amber-400 mb-1.5">
+          <span>✦ Tiragem <span id="tv-reveal-index">1</span> de 4</span>
+          <span>•</span>
+          <span id="tv-reveal-tempo-label" class="text-rose-400 font-bold">Abertura</span>
+        </div>
+        <div class="xilo-frame rounded-2xl bg-[#101424]/95 px-5 py-3">
+          <p class="text-[11px] sm:text-xs uppercase tracking-[0.22em] text-amber-300/85 font-mono-code">
+            A Sorte de <strong id="tv-reveal-target" class="text-amber-300 text-sm sm:text-base">---</strong>
+          </p>
+          <p id="tv-reveal-question" class="font-serif-drama italic text-lg sm:text-2xl text-[#f4ecd8] mt-0.5 leading-snug">
+            “...”
+          </p>
+        </div>
+      </div>
+
+      <!-- CENTRO: MESA COM 3 CARTAS DE TARÔ IDÊNTICAS (2:3) -->
+      <div class="tarot-stage my-auto py-1">
+        <!-- CARTA I: O PRESSÁGIO -->
+        <div id="tarot-slot-1" class="tarot-slot">
+          <div class="tarot-card-inner">
+            <!-- VERSO -->
+            <div class="tarot-face tarot-face-back text-amber-300/75">
+              <div class="tarot-corner tl"></div><div class="tarot-corner tr"></div>
+              <div class="tarot-corner bl"></div><div class="tarot-corner br"></div>
+              <span class="font-tarot text-xs tracking-widest opacity-80">I</span>
+              <svg class="w-16 h-16 sm:w-24 sm:h-24 opacity-80" viewBox="0 0 100 100" fill="none">
+                <circle cx="50" cy="50" r="38" stroke="#d4af37" stroke-width="1.4" stroke-dasharray="4 3"/>
+                <circle cx="50" cy="50" r="24" stroke="#d4af37" stroke-width="1.2"/>
+                <path d="M50 8 L54 46 L92 50 L54 54 L50 92 L46 54 L8 50 L46 46 Z" stroke="#d4af37" stroke-width="1.3" fill="rgba(212,175,55,0.12)"/>
+                <circle cx="50" cy="50" r="5" fill="#d4af37"/>
+              </svg>
+              <span class="font-mono-code text-[9px] uppercase tracking-[0.2em] opacity-70">O Presságio</span>
+            </div>
+            <!-- FRENTE -->
+            <div class="tarot-face tarot-face-front xilo-card-tarot text-amber-300">
+              <div class="tarot-corner tl"></div><div class="tarot-corner tr"></div>
+              <div class="tarot-corner bl"></div><div class="tarot-corner br"></div>
+              <div class="font-tarot text-sm sm:text-base font-bold tracking-[0.25em] text-amber-300/90">I</div>
+              <!-- Medalhão Místico com os 2 Emojis -->
+              <div class="w-[82%] aspect-square rounded-full border border-amber-400/50 bg-[#080b16]/90 shadow-[inset_0_0_20px_rgba(212,175,55,0.18)] flex items-center justify-center px-1">
+                <span id="card1-emojis" class="text-3xl sm:text-5xl tracking-wider leading-none select-none">🐕🔥</span>
+              </div>
+              <div class="w-full px-1">
+                <div class="w-10 h-px bg-amber-400/45 mx-auto mb-1.5"></div>
+                <div id="card1-title" class="font-tarot font-bold text-[11px] sm:text-sm text-[#f4ecd8] uppercase tracking-wider leading-tight line-clamp-2">
+                  ---
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARTA II: A CARTA DA BRUXA (FIXAS COM SVG XILOGRAVURA) -->
+        <div id="tarot-slot-2" class="tarot-slot">
+          <div class="tarot-card-inner">
+            <!-- VERSO -->
+            <div class="tarot-face tarot-face-back text-amber-300/75">
+              <div class="tarot-corner tl"></div><div class="tarot-corner tr"></div>
+              <div class="tarot-corner bl"></div><div class="tarot-corner br"></div>
+              <span class="font-tarot text-xs tracking-widest opacity-80">II</span>
+              <svg class="w-16 h-16 sm:w-24 sm:h-24 opacity-85" viewBox="0 0 100 100" fill="none">
+                <polygon points="50,10 88,78 12,78" stroke="#d4af37" stroke-width="1.5" fill="rgba(143,29,32,0.28)"/>
+                <polygon points="50,90 88,22 12,22" stroke="#d4af37" stroke-width="1.5" fill="none"/>
+                <circle cx="50" cy="50" r="14" stroke="#d4af37" stroke-width="1.4" fill="#090c17"/>
+                <circle cx="50" cy="50" r="4" fill="#d4af37"/>
+              </svg>
+              <span class="font-mono-code text-[9px] uppercase tracking-[0.2em] opacity-70">A Bruxa</span>
+            </div>
+            <!-- FRENTE -->
+            <div class="tarot-face tarot-face-front xilo-card-witch text-[#f4ecd8]">
+              <div class="tarot-corner tl text-amber-300"></div><div class="tarot-corner tr text-amber-300"></div>
+              <div class="tarot-corner bl text-amber-300"></div><div class="tarot-corner br text-amber-300"></div>
+              <div class="font-tarot text-sm sm:text-base font-bold tracking-[0.25em] text-amber-200">II</div>
+              <!-- SVG Vetorial Xilogravura da Carta da Bruxa -->
+              <div id="card2-svg" class="w-[78%] aspect-square flex items-center justify-center text-[#f4ecd8] drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
+                <!-- SVG injetado via JS -->
+              </div>
+              <div class="w-full px-1">
+                <div class="w-10 h-px bg-amber-400/45 mx-auto mb-1.5"></div>
+                <div id="card2-arcana" class="font-tarot font-bold text-[11px] sm:text-sm text-amber-200 uppercase tracking-wider leading-tight line-clamp-2">
+                  A Traição
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARTA III: O DESTINO (PERGAMINHO + SELO) -->
+        <div id="tarot-slot-3" class="tarot-slot">
+          <div class="tarot-card-inner">
+            <!-- VERSO -->
+            <div class="tarot-face tarot-face-back text-amber-300/75">
+              <div class="tarot-corner tl"></div><div class="tarot-corner tr"></div>
+              <div class="tarot-corner bl"></div><div class="tarot-corner br"></div>
+              <span class="font-tarot text-xs tracking-widest opacity-80">III</span>
+              <svg class="w-16 h-16 sm:w-24 sm:h-24 opacity-80" viewBox="0 0 100 100" fill="none">
+                <path d="M58 18 A32 32 0 1 0 58 82 A24 24 0 1 1 58 18 Z" stroke="#d4af37" stroke-width="1.6" fill="rgba(212,175,55,0.16)"/>
+                <circle cx="64" cy="38" r="2.5" fill="#d4af37"/>
+                <circle cx="72" cy="52" r="2" fill="#d4af37"/>
+                <circle cx="60" cy="64" r="2.5" fill="#d4af37"/>
+              </svg>
+              <span class="font-mono-code text-[9px] uppercase tracking-[0.2em] opacity-70">O Destino</span>
+            </div>
+            <!-- FRENTE -->
+            <div class="tarot-face tarot-face-front xilo-card-destiny">
+              <div class="tarot-corner tl text-[#1d1712]"></div><div class="tarot-corner tr text-[#1d1712]"></div>
+              <div class="tarot-corner bl text-[#1d1712]"></div><div class="tarot-corner br text-[#1d1712]"></div>
+              <div class="font-tarot text-sm sm:text-base font-bold tracking-[0.25em] text-[#3a2618]">III</div>
+              <!-- Selo do Destino em SVG Xilogravura -->
+              <div id="card3-svg" class="w-[78%] aspect-square flex items-center justify-center text-[#161210]">
+                <!-- SVG injetado via JS -->
+              </div>
+              <div class="w-full px-1">
+                <div class="w-10 h-px bg-[#161210]/40 mx-auto mb-1.5"></div>
+                <div id="card3-title" class="font-tarot font-extrabold text-[11px] sm:text-sm text-[#161210] uppercase tracking-wider leading-tight">
+                  O Destino
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BASE: INTERPRETAÇÃO UNIFICADA DA BRUXA (LETRA POR LETRA) -->
+      <div class="max-w-5xl mx-auto w-full">
+        <div class="xilo-frame rounded-2xl bg-[#111526]/95 px-5 sm:px-8 py-4 sm:py-5 min-h-[118px] flex flex-col justify-center text-center">
+          <div class="text-[10px] font-mono-code uppercase tracking-[0.25em] text-amber-400/75 mb-1.5">
+            ✦ Interpretação da Bruxa ✦
+          </div>
+          <p id="tv-interpretation-box" class="font-serif-drama text-lg sm:text-2xl text-[#f4ecd8] leading-relaxed">
+            <span id="interp-idle" class="italic text-[#f4ecd8]/45">A mesa está posta. Vire a primeira carta...</span><span id="interp-part1"></span><span id="interp-part2" class="font-ritual text-amber-300 mx-1.5 inline-block"></span><span id="interp-part3" class="font-bold text-[#fff8e7]"></span><span id="interp-cursor" class="witch-cursor hidden">✦</span>
+          </p>
+          <div id="tv-interpretation-credits" class="hidden text-[11px] font-mono-code text-amber-300/70 mt-2.5 pt-2 border-t border-amber-500/20 anim-fade">
+            <!-- Créditos dos 3 autores -->
+          </div>
+        </div>
+
+        <!-- Controles da Revelação -->
+        <div class="flex flex-wrap items-center justify-center gap-3 pt-3">
+          <button id="btn-reveal-next" class="btn-gold px-7 py-3 rounded-xl text-sm sm:text-base cursor-pointer">
+            Carta I — O Presságio
+          </button>
+          <button id="btn-reveal-auto" class="btn-ghost px-5 py-3 rounded-xl text-xs sm:text-sm cursor-pointer">
+            ⏱️ Modo Automático: OFF
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TV VIEW 4: VOTAÇÃO -->
+    <div id="tv-view-voting" class="hidden flex-1 flex flex-col justify-center py-4 anim-fade">
+      <div class="text-center mb-6">
+        <span class="px-4 py-1 rounded-full bg-rose-900/50 border border-amber-400/40 text-amber-300 font-mono-code text-xs uppercase tracking-[0.2em]">
+          Votação nos Celulares
+        </span>
+        <h2 class="font-ritual text-3xl sm:text-4xl text-[#f4ecd8] mt-2">
+          Qual foi a Melhor Profecia da Noite?
+        </h2>
+        <p class="text-sm text-[#f4ecd8]/70 mt-1">
+          Votem no celular! (<span id="tv-votes-count" class="text-amber-300 font-bold">0</span>/4 votos recebidos)
+        </p>
+      </div>
+
+      <div id="tv-voting-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl mx-auto w-full">
+        <!-- 4 Profecias via JS -->
+      </div>
+    </div>
+
+    <!-- TV VIEW 5: PLACAR E GALERIA 9:16 -->
+    <div id="tv-view-results" class="hidden flex-1 flex flex-col py-4 anim-fade">
+      <div class="text-center mb-5">
+        <div class="text-4xl mb-1">👑</div>
+        <h2 class="font-ritual text-3xl sm:text-4xl text-amber-300">
+          Profecia Vencedora!
+        </h2>
+        <div id="tv-winner-banner" class="xilo-frame rounded-2xl bg-[#131729] p-5 max-w-3xl mx-auto mt-3">
+          <!-- Vencedor via JS -->
+        </div>
+      </div>
+
+      <div class="max-w-4xl mx-auto w-full mb-5">
+        <h3 class="font-mono-code text-xs uppercase tracking-[0.2em] text-amber-300/80 mb-3 text-center">
+          Placar Geral (+100 Início • +100 Destino)
+        </h3>
+        <div id="tv-scoreboard" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <!-- Placar via JS -->
+        </div>
+      </div>
+
+      <div class="max-w-6xl mx-auto w-full mb-5">
+        <h3 class="font-mono-code text-xs uppercase tracking-[0.2em] text-amber-300/80 mb-3 text-center">
+          Galeria da Rodada — Baixe em 9:16 para postar no Story
+        </h3>
+        <div id="tv-gallery" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <!-- Galeria via JS -->
+        </div>
+      </div>
+
+      <div class="text-center mt-auto pt-2">
+        <button id="btn-new-round" class="btn-gold px-8 py-4 rounded-xl text-lg cursor-pointer">
+          🌙 Nova Rodada (Mesmos Jogadores)
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       MODO CELULAR (JOGADOR)
+  ========================================================== -->
+  <section id="screen-phone" class="hidden relative z-10 min-h-screen flex flex-col max-w-md mx-auto p-4">
+    <!-- Header Celular -->
+    <header class="flex items-center justify-between pb-3 mb-4 border-b border-amber-500/25">
+      <div>
+        <h1 class="font-ritual text-lg text-amber-300 leading-none">KUKUKAYA</h1>
+        <span id="phone-player-badge" class="text-xs font-mono-code text-[#f4ecd8]/65">Conectando...</span>
+      </div>
+      <div id="phone-timer-pill" class="hidden px-3 py-1 rounded-full bg-rose-900/60 border border-amber-400/50 font-mono-code text-sm font-bold text-amber-200">
+        ⏱ <span id="phone-timer-val">45</span>s
+      </div>
+    </header>
+
+    <!-- PHONE VIEW 1: ENTRAR NA SALA -->
+    <div id="phone-view-join" class="flex-1 flex flex-col justify-center anim-fade">
+      <div class="xilo-card-tarot rounded-2xl p-6">
+        <h2 class="font-serif-drama text-2xl text-amber-300 font-bold mb-1">Entrar na Mesa</h2>
+        <p class="text-xs text-[#f4ecd8]/70 mb-5">Digite o código de 4 letras exibido na TV.</p>
+
+        <label class="block text-xs font-mono-code uppercase text-amber-200/85 mb-1">Código da Sala</label>
+        <input id="input-room-code" type="text" maxlength="4" placeholder="Ex: KUKU"
+          class="w-full rounded-xl bg-[#090b14] border border-amber-500/40 px-4 py-3 text-center font-mono-code text-2xl uppercase tracking-[0.25em] text-amber-300 focus:outline-none focus:border-amber-300 mb-4">
+
+        <label class="block text-xs font-mono-code uppercase text-amber-200/85 mb-1">Seu Nome</label>
+        <input id="input-player-name" type="text" maxlength="16" placeholder="Como a Bruxa te chama?"
+          class="w-full rounded-xl bg-[#090b14] border border-amber-500/40 px-4 py-3 text-base text-[#f4ecd8] focus:outline-none focus:border-amber-300 mb-5">
+
+        <button id="btn-join-room" class="btn-gold w-full py-3.5 rounded-xl text-base cursor-pointer">
+          🔮 Entrar no Ritual
+        </button>
+
+        <button id="btn-phone-back" class="btn-ghost w-full py-2.5 rounded-xl text-xs mt-3 cursor-pointer">
+          ← Voltar
+        </button>
+      </div>
+    </div>
+
+    <!-- PHONE VIEW 2: LOBBY -->
+    <div id="phone-view-lobby" class="hidden flex-1 flex flex-col items-center justify-center text-center anim-fade">
+      <div class="text-6xl mb-4 animate-bounce">🕯️</div>
+      <h2 class="font-serif-drama text-2xl text-amber-300 font-bold">Você está na Mesa!</h2>
+      <p id="phone-lobby-msg" class="text-sm text-[#f4ecd8]/75 mt-2 max-w-xs">
+        Aguardando os outros jogadores entrarem na sala...
+      </p>
+      <div id="phone-host-start-wrap" class="hidden w-full mt-6">
+        <button id="btn-phone-start-ritual" class="btn-gold w-full py-4 rounded-xl text-base cursor-pointer">
+          🔥 Começar Ritual (4/4 Prontos)
+        </button>
+      </div>
+    </div>
+
+    <!-- PHONE VIEW 3: PASSO 1 (PRESSÁGIO + PERGUNTA SECRETA) -->
+    <div id="phone-view-step1" class="hidden flex-1 flex flex-col anim-fade">
+      <div class="text-xs font-mono-code uppercase tracking-widest text-amber-300 mb-2">
+        Passo 1 • Forje sua Carta & Pergunta
+      </div>
+
+      <div class="xilo-card-tarot rounded-2xl p-4 text-center mb-4">
+        <p class="text-[11px] font-mono-code uppercase text-amber-200/70">Seus Emojis dos 5 Reinos</p>
+        <div id="phone-s1-emojis" class="text-6xl my-2 tracking-widest">🐕🔥</div>
+        <input id="input-card-name" type="text" maxlength="32" placeholder="Batize esta carta (ex: O Cachorro em Brasa)"
+          class="w-full rounded-xl bg-[#090b14] border border-amber-500/40 px-3 py-2.5 text-center text-sm text-[#f4ecd8] focus:outline-none focus:border-amber-300 mt-1">
+      </div>
+
+      <div class="xilo-card-witch rounded-2xl p-4 mb-4">
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-xs font-mono-code uppercase text-amber-200 font-bold">Pergunta Secreta à Bruxa</label>
+          <button id="btn-roll-question" type="button" class="bg-[#090b14]/70 hover:bg-[#090b14] text-amber-300 border border-amber-400/50 px-2.5 py-1 rounded-lg text-xs font-mono-code cursor-pointer">
+            🎲 Sortear
+          </button>
+        </div>
+        <textarea id="input-secret-question" rows="2" maxlength="95" placeholder="O que você quer perguntar ao Tarô?"
+          class="w-full rounded-xl bg-[#090b14]/85 border border-amber-400/35 px-3 py-2 text-sm text-[#f4ecd8] focus:outline-none focus:border-amber-300 resize-none"></textarea>
+        <p class="text-[11px] text-[#f4ecd8]/75 mt-1">
+          Ninguém verá esta pergunta até a revelação final na TV!
+        </p>
+      </div>
+
+      <button id="btn-submit-step1" class="btn-gold w-full py-3.5 rounded-xl text-base mt-auto cursor-pointer">
+        ✨ Enviar Presságio
+      </button>
+    </div>
+
+    <!-- PHONE VIEW 4: PASSO 2 (O INÍCIO) -->
+    <div id="phone-view-step2" class="hidden flex-1 flex flex-col anim-fade">
+      <div class="text-xs font-mono-code uppercase tracking-widest text-amber-300 mb-2">
+        Passo 2 • O Início da Profecia
+      </div>
+
+      <div class="xilo-card-tarot rounded-2xl p-5 text-center mb-4">
+        <p class="text-[11px] font-mono-code uppercase text-amber-200/70">Carta recebida do círculo</p>
+        <div id="phone-s2-emojis" class="text-6xl my-2 tracking-widest">👁️🍄</div>
+        <h3 id="phone-s2-name" class="font-tarot font-bold text-xl text-amber-300 uppercase">O Olho Cogumelo</h3>
+      </div>
+
+      <label class="text-xs font-mono-code uppercase text-amber-200/85 mb-1.5">
+        Escreva uma frase livre sobre esta carta:
+      </label>
+      <textarea id="input-start-text" rows="3" maxlength="110" placeholder="Ex: O olho cogumelo ficou encarando tua janta..."
+        class="w-full rounded-xl bg-[#131629] border border-amber-500/40 px-4 py-3 text-base text-[#f4ecd8] focus:outline-none focus:border-amber-300 resize-none mb-2"></textarea>
+      <p class="text-xs text-[#f4ecd8]/60 mb-4">
+        Não precisa terminar a história — a Bruxa vai puxar uma Ponte depois!
+      </p>
+
+      <button id="btn-submit-step2" class="btn-gold w-full py-3.5 rounded-xl text-base mt-auto cursor-pointer">
+        📜 Enviar Início
+      </button>
+    </div>
+
+    <!-- PHONE VIEW 5: PASSO 3 (A PONTE + SELO DO DESTINO + FECHAMENTO) -->
+    <div id="phone-view-step3" class="hidden flex-1 flex flex-col anim-fade">
+      <div class="text-xs font-mono-code uppercase tracking-widest text-amber-300 mb-2">
+        Passo 3 • Feche a Profecia
+      </div>
+
+      <div class="xilo-card-tarot rounded-2xl p-3.5 mb-2.5">
+        <div class="flex items-center gap-2.5 mb-1">
+          <span id="phone-s3-emojis" class="text-2xl">🗡️🌊</span>
+          <span id="phone-s3-name" class="font-tarot font-bold text-sm text-amber-300 uppercase">A Faca na Maré</span>
+        </div>
+        <p id="phone-s3-start" class="font-serif-drama text-sm text-[#f4ecd8] italic leading-snug">
+          “...”
+        </p>
+      </div>
+
+      <div class="xilo-card-witch rounded-xl p-3 mb-3 flex items-center justify-center gap-3">
+        <div id="phone-s3-bridge-svg" class="w-11 h-11 text-[#f4ecd8] shrink-0"></div>
+        <div class="text-left">
+          <div id="phone-s3-bridge-title" class="text-[11px] font-mono-code uppercase text-amber-200/85">A Traição</div>
+          <div id="phone-s3-bridge-word" class="font-ritual text-lg text-[#f4ecd8] leading-tight">MAS...</div>
+        </div>
+      </div>
+
+      <label class="text-xs font-mono-code uppercase text-amber-200/85 mb-1">
+        Complete o desfecho após a Ponte:
+      </label>
+      <textarea id="input-end-text" rows="2" maxlength="120" placeholder="...a maré devolveu a faca e levou teu chinelo."
+        class="w-full rounded-xl bg-[#131729] border border-amber-500/40 px-3.5 py-2.5 text-sm text-[#f4ecd8] focus:outline-none focus:border-amber-300 resize-none mb-3"></textarea>
+
+      <!-- Seletor Rápido: Selo do Destino (Carta III) -->
+      <div class="mb-3">
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-[11px] font-mono-code uppercase text-amber-200/85">Selo da Carta III (Opcional)</span>
+          <span class="text-[10px] text-[#f4ecd8]/55">Toque para escolher</span>
+        </div>
+        <div id="phone-seal-grid" class="grid grid-cols-4 gap-1.5">
+          <!-- 8 Selos via JS -->
+        </div>
+      </div>
+
+      <button id="btn-submit-step3" class="btn-gold w-full py-3.5 rounded-xl text-base mt-auto cursor-pointer">
+        🔥 Selar Destino
+      </button>
+    </div>
+
+    <!-- PHONE VIEW 6: AGUARDANDO / OLHE PARA A TV -->
+    <div id="phone-view-wait" class="hidden flex-1 flex flex-col items-center justify-center text-center anim-fade">
+      <div id="phone-wait-icon" class="text-6xl mb-4">👀</div>
+      <h2 id="phone-wait-title" class="font-ritual text-2xl text-amber-300">Olhe para a TV!</h2>
+      <p id="phone-wait-sub" class="text-sm text-[#f4ecd8]/75 mt-2 max-w-xs">
+        A Bruxa está preparando a mesa...
+      </p>
+    </div>
+
+    <!-- PHONE VIEW 7: VOTAÇÃO -->
+    <div id="phone-view-vote" class="hidden flex-1 flex flex-col anim-fade">
+      <div class="text-xs font-mono-code uppercase tracking-widest text-amber-300 mb-1">
+        Votação Final
+      </div>
+      <h2 class="font-serif-drama text-xl text-[#f4ecd8] font-bold mb-3">
+        Qual foi a melhor profecia?
+      </h2>
+      <div id="phone-vote-list" class="flex flex-col gap-3 flex-1 overflow-y-auto pb-4">
+        <!-- Votos via JS -->
+      </div>
+    </div>
+
+    <!-- PHONE VIEW 8: GALERIA 9:16 -->
+    <div id="phone-view-gallery" class="hidden flex-1 flex flex-col anim-fade">
+      <div class="text-center mb-4">
+        <span class="text-xs font-mono-code uppercase tracking-widest text-amber-300">Fim da Rodada</span>
+        <h2 class="font-ritual text-2xl text-[#f4ecd8]">Suas Cartas da Noite</h2>
+        <p class="text-xs text-[#f4ecd8]/70 mt-1">Baixe sua sorte em 9:16 pronta para o Story!</p>
+      </div>
+      <div id="phone-gallery-list" class="flex flex-col gap-3 pb-6">
+        <!-- Galeria via JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Canvas oculto para gerar Carta 9:16 em Alta Resolução (1080x1920) -->
+  <canvas id="story-canvas" width="1080" height="1920" class="hidden"></canvas>
+
+  <script src="./game-state.js?v=2"></script>
+  <script>
+    /* =========================================================================
+       1. BANCO DE DADOS: 5 REINOS, 7 CARTAS DA BRUXA (SVG XILOGRAVURA),
+          8 SELOS DO DESTINO (SVG), PERGUNTAS SECRETAS E BOTS
+    ========================================================================= */
+    const REALMS = [
+      { name: 'Cosmos', emojis: ['🌕', '🔥', '🌊', '⚡', '☄️', '🌌', '🌪️', '☀️'] },
+      { name: 'Vegetal', emojis: ['🍄', '🌵', '🌹', '🌿', '🌶️', '🌳', '🌻', '🧄'] },
+      { name: 'Animal', emojis: ['🐕', '🦉', '🐍', '🐓', '🐐', '🦋', '🕷️', '🐟'] },
+      { name: 'Humano', emojis: ['👁️', '🗡️', '🪞', '👑', '🥁', '🔑', '👞', '🍷'] },
+      { name: 'Espiritual', emojis: ['💀', '🔮', '🕯️', '🧿', '🎭', '⏳', '🕸️', '🌙'] }
+    ];
+
+    // 7 Cartas da Bruxa FIXAS com SVGs vetoriais exclusivos em estilo xilogravura
+    const WITCH_CARDS = [
+      {
+        id: 'traicao',
+        title: 'A Traição',
+        word: 'MAS...',
+        icon: '🗡️',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="16" y1="60" x2="104" y2="60" stroke="#d4af37" stroke-width="2.5" stroke-dasharray="6 5"/>
+          <path d="M60 12 L68 58 L60 108 L52 58 Z" fill="rgba(244,236,216,0.16)"/>
+          <line x1="60" y1="16" x2="60" y2="102" stroke-width="2"/>
+          <path d="M36 44 Q60 52 84 44" stroke="#d4af37" stroke-width="3.5"/>
+          <circle cx="60" cy="24" r="5" fill="#d4af37"/>
+          <path d="M55 30 L65 30 L63 44 L57 44 Z" fill="currentColor"/>
+        </svg>`
+      },
+      {
+        id: 'segredo',
+        title: 'O Segredo',
+        word: 'PORQUE...',
+        icon: '🔑',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M60 12 L60 26 M60 94 L60 108 M22 26 L32 36 M98 26 L88 36 M22 94 L32 84 M98 94 L88 84" stroke="#d4af37" stroke-width="2.4"/>
+          <path d="M14 60 Q60 22 106 60 Q60 98 14 60 Z" fill="rgba(244,236,216,0.14)"/>
+          <circle cx="60" cy="60" r="18" stroke="#d4af37" stroke-width="3"/>
+          <circle cx="60" cy="60" r="8" fill="currentColor"/>
+          <circle cx="63" cy="57" r="2.5" fill="#4a0c0e" stroke="none"/>
+        </svg>`
+      },
+      {
+        id: 'sentenca',
+        title: 'A Sentença',
+        word: 'PORTANTO...',
+        icon: '⚖️',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="60" y1="18" x2="60" y2="100" stroke="#d4af37" stroke-width="3.5"/>
+          <path d="M38 100 L82 100 L72 90 L48 90 Z" fill="rgba(212,175,55,0.35)" stroke="#d4af37"/>
+          <line x1="22" y1="34" x2="98" y2="34" stroke-width="3.5"/>
+          <circle cx="60" cy="22" r="5" fill="#d4af37" stroke="none"/>
+          <path d="M26 34 L16 66 L36 66 Z" fill="rgba(244,236,216,0.12)"/>
+          <path d="M14 66 Q26 78 38 66 Z" fill="currentColor"/>
+          <path d="M94 34 L84 66 L104 66 Z" fill="rgba(244,236,216,0.12)"/>
+          <path d="M82 66 Q94 78 106 66 Z" fill="currentColor"/>
+        </svg>`
+      },
+      {
+        id: 'pacto',
+        title: 'O Pacto',
+        word: 'A NÃO SER QUE...',
+        icon: '🤝',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M60 12 C60 12 71 26 71 33 A11 11 0 0 1 49 33 C49 26 60 12 60 12 Z" fill="#d4af37" stroke="#f4ecd8" stroke-width="2"/>
+          <path d="M30 48 L90 48 C88 74 74 82 60 82 C46 82 32 74 30 48 Z" fill="rgba(244,236,216,0.15)"/>
+          <line x1="60" y1="82" x2="60" y2="102" stroke-width="3.5"/>
+          <path d="M40 104 L80 104" stroke="#d4af37" stroke-width="4"/>
+          <path d="M44 58 A14 14 0 0 0 76 58" stroke="#d4af37" stroke-width="2"/>
+        </svg>`
+      },
+      {
+        id: 'teimosia',
+        title: 'A Teimosia',
+        word: 'MESMO QUE...',
+        icon: '🧱',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M34 104 L42 26 L78 26 L86 104 Z" fill="rgba(244,236,216,0.14)"/>
+          <path d="M38 26 L38 16 L48 16 L48 22 L56 22 L56 16 L64 16 L64 22 L72 22 L72 16 L82 16 L82 26" stroke="#d4af37" stroke-width="2.8"/>
+          <path d="M62 26 L54 48 L66 60 L52 84" stroke="#d4af37" stroke-width="2.8"/>
+          <line x1="22" y1="104" x2="98" y2="104" stroke-width="4"/>
+        </svg>`
+      },
+      {
+        id: 'espelho',
+        title: 'O Espelho',
+        word: 'ASSIM COMO...',
+        icon: '🪞',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <ellipse cx="60" cy="52" rx="30" ry="38" fill="rgba(244,236,216,0.12)" stroke="#d4af37" stroke-width="3.5"/>
+          <ellipse cx="60" cy="52" rx="22" ry="30" stroke="currentColor" stroke-width="1.8" stroke-dasharray="4 3"/>
+          <path d="M60 34 L63 44 L73 47 L63 50 L60 60 L57 50 L47 47 L57 44 Z" fill="#d4af37" stroke="none"/>
+          <circle cx="50" cy="64" r="2.5" fill="currentColor" stroke="none"/>
+          <circle cx="70" cy="60" r="2" fill="currentColor" stroke="none"/>
+          <line x1="60" y1="90" x2="60" y2="108" stroke="#d4af37" stroke-width="4"/>
+          <path d="M48 108 L72 108" stroke="#d4af37" stroke-width="3"/>
+        </svg>`
+      },
+      {
+        id: 'exagero',
+        title: 'O Exagero',
+        word: 'TANTO QUE...',
+        icon: '🔥',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M60 12 C74 34  94 48 92 74 C90 94 76 106 60 106 C44 106 30 94 28 74 C26 52 44 40 50 26 C52 36 56 40 60 12 Z" fill="rgba(244,236,216,0.16)" stroke="#f4ecd8" stroke-width="3"/>
+          <path d="M60 44 C70 58 76 68 74 82 C72 92 66 98 60 98 C54 98 48 92 46 82 C44 70 54 60 60 44 Z" fill="rgba(212,175,55,0.45)" stroke="#d4af37" stroke-width="2.5"/>
+          <path d="M18 46 L26 50 L36 54 L46 50 L36 46 L26 42 Z" fill="currentColor"/>
+          <path d="M94 46 L86 50 L76 54 L66 50 L76 46 L86 42 Z" fill="currentColor"/>
+        </svg>`
+      }
+    ];
+
+    // 8 Selos do Destino para a Carta III (Fundo Pergaminho, Tinta Preta/Sépia Xilogravura)
+    const DESTINY_SEALS = [
+      {
+        id: 'bobo',
+        title: 'O Bobo',
+        icon: '🤡',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 52 Q36 16 60 42 Q84 16 98 52 Q78 46 60 56 Q42 46 22 52 Z" fill="rgba(22,18,16,0.12)"/>
+          <circle cx="20" cy="54" r="5" fill="currentColor"/>
+          <circle cx="100" cy="54" r="5" fill="currentColor"/>
+          <circle cx="60" cy="24" r="5" fill="currentColor"/>
+          <path d="M60 42 L60 28"/>
+          <circle cx="60" cy="76" r="24"/>
+          <path d="M48 72 L53 72 M67 72 L72 72" stroke-width="3.5"/>
+          <path d="M47 84 Q60 95 73 84" stroke-width="3"/>
+        </svg>`
+      },
+      {
+        id: 'caveira',
+        title: 'A Caveira',
+        icon: '💀',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M28 56 C28 32 42 18 60 18 C78 18 92 32 92 56 C92 70 84 78 78 82 L78 96 L42 96 L42 82 C36 78 28 70 28 56 Z" fill="rgba(22,18,16,0.08)"/>
+          <circle cx="46" cy="56" r="9" fill="currentColor"/>
+          <circle cx="74" cy="56" r="9" fill="currentColor"/>
+          <path d="M60 66 L55 76 L65 76 Z" fill="currentColor"/>
+          <path d="M50 86 L50 96 M60 86 L60 96 M70 86 L70 96"/>
+        </svg>`
+      },
+      {
+        id: 'coroa',
+        title: 'A Coroa',
+        icon: '👑',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 84 L26 36 L48 58 L60 26 L72 58 L94 36 L102 84 Z" fill="rgba(22,18,16,0.12)"/>
+          <rect x="20" y="84" width="80" height="12" rx="3" fill="currentColor"/>
+          <circle cx="26" cy="30" r="4" fill="currentColor"/>
+          <circle cx="60" cy="20" r="5" fill="currentColor"/>
+          <circle cx="94" cy="30" r="4" fill="currentColor"/>
+          <circle cx="60" cy="68" r="5"/>
+        </svg>`
+      },
+      {
+        id: 'serpente',
+        title: 'A Serpente',
+        icon: '🐍',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M60 20 C84 20 88 40 60 50 C32 60 36 80 64 86 C82 90 86 102 60 104"/>
+          <ellipse cx="52" cy="22" rx="10" ry="7" fill="currentColor"/>
+          <path d="M40 22 L30 18 M40 22 L30 26" stroke-width="2.5"/>
+          <circle cx="50" cy="20" r="1.8" fill="#f4ecd8" stroke="none"/>
+        </svg>`
+      },
+      {
+        id: 'ouro',
+        title: 'O Ouro',
+        icon: '💰',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="60" cy="60" r="38" fill="rgba(22,18,16,0.08)"/>
+          <circle cx="60" cy="60" r="30" stroke-dasharray="5 4" stroke-width="2"/>
+          <path d="M60 34 L60 86 M70 46 C70 40 50 40 50 48 C50 58 72 58 72 70 C72 78 50 80 48 72" stroke-width="4"/>
+        </svg>`
+      },
+      {
+        id: 'amor',
+        title: 'A Chama',
+        icon: '❤️‍🔥',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M60 98 C60 98 20 74 20 46 C20 30 34 22 46 28 C53 31 58 38 60 44 C62 38 67 31 74 28 C86 22 100 30 100 46 C100 74 60 98 60 98 Z" fill="rgba(22,18,16,0.12)"/>
+          <path d="M60 30 C64 20 70 16 66 10 M54 26 C50 18 54 12 50 10" stroke-width="2.5"/>
+          <path d="M46 56 L74 56 M60 44 L60 76" stroke-width="2.2"/>
+        </svg>`
+      },
+      {
+        id: 'lua',
+        title: 'A Lua',
+        icon: '🌙',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M72 22 A38 38 0 1 0 72 98 A28 28 0 1 1 72 22 Z" fill="rgba(22,18,16,0.14)"/>
+          <path d="M78 44 L81 52 L89 55 L81 58 L78 66 L75 58 L67 55 L75 52 Z" fill="currentColor" stroke="none"/>
+          <circle cx="88" cy="34" r="3" fill="currentColor" stroke="none"/>
+          <circle cx="88" cy="78" r="2.5" fill="currentColor" stroke="none"/>
+        </svg>`
+      },
+      {
+        id: 'galo',
+        title: 'O Galo',
+        icon: '🐓',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M44 34 C44 22 54 18 58 26 C62 18 72 22 70 32" fill="rgba(22,18,16,0.18)"/>
+          <path d="M48 36 C36 42 36 62 46 74 C56 84 78 84 86 68 C94 52 88 38 78 42 C72 44 68 50 62 50 C58 42 56 36 48 36 Z" fill="rgba(22,18,16,0.1)"/>
+          <path d="M36 46 L26 50 L36 54" fill="currentColor"/>
+          <circle cx="46" cy="46" r="2.5" fill="currentColor" stroke="none"/>
+          <path d="M56 82 L52 102 M70 80 L74 102 M44 102 L60 102 M66 102 L82 102"/>
+        </svg>`
+      }
+    ];
+
+    const SECRET_QUESTIONS = [
+      'Vou ficar rico esse ano?',
+      'Por que eu ainda estou solteiro?',
+      'O que vai acontecer no meu próximo rolê?',
+      'Qual é o meu maior defeito oculto?',
+      'Devo mandar mensagem para quem estou pensando?',
+      'O que meus amigos falam de mim quando eu saio da sala?',
+      'Qual vai ser o maior perrengue do meu mês?',
+      'Meu chefe realmente gosta de mim?',
+      'Vou finalmente conseguir dormir cedo hoje?',
+      'O que o universo está escondendo de mim?',
+      'Qual vai ser o motivo da minha próxima vergonha pública?',
+      'Devo aceitar aquele convite suspeito?',
+      'O que aconteceu na minha vida passada?',
+      'Quando é que a minha sorte no amor vai virar?',
+      'Vou pagar todos os boletos sem chorar?',
+      'Qual talento secreto eu ainda não descobri?',
+      'Quem nesta sala seria o primeiro a me trair num apocalipse?',
+      'Devo mudar de cidade e sumir do mapa?',
+      'O que o destino reservou para o meu fim de semana?',
+      'Por que tudo dá errado bem na minha vez?',
+      'Vou viralizar na internet este ano?',
+      'Qual é a verdadeira razão do meu cansaço?'
+    ];
+
+    const BOT_NAMES = ['Dona Zefa', 'Chico Lua', 'Severina', 'Mestre Galo'];
+    const BOT_CARD_NAMES = [
+      'O Cachorro em Brasa', 'O Olho Cogumelo', 'A Faca na Maré', 'O Espelho da Morte',
+      'O Galo da Meia-Noite', 'A Vela do Bode', 'A Coroa de Pimenta', 'O Tambor Fantasma'
+    ];
+    const BOT_STARTS = [
+      'Essa criatura entrou correndo na sala derrubando o café',
+      'Um presságio apareceu no meio da tua janta de terça-feira',
+      'Você tentou esconder esse segredo debaixo do colchão',
+      'O universo mandou um sinal claro bem na hora do boleto',
+      'Uma voz misteriosa sussurrou teu nome no ponto de ônibus',
+      'O destino bateu na tua porta usando chinelo trocado'
+    ];
+    const BOT_ENDS = [
+      'a maré devolveu tudo e ainda levou teu último neurônio.',
+      'nem a própria Bruxa teve coragem de provar esse tempero.',
+      'você jogue um balde de água fria no vizinho antes da meia-noite.',
+      'o espelho rachou de puro desgosto com a tua cara.',
+      'todo mundo na sala já sabia disso desde o carnaval passado.',
+      'até o Wi-Fi caiu de vergonha alheia na mesma hora.'
+    ];
+
+    const STEP_DURATION = 45;
+
+    /* =========================================================================
+       2. MOTOR DE ÁUDIO SINTETIZADO (WEB AUDIO API)
+    ========================================================================= */
+    const SoundFX = {
+      ctx: null,
+      enabled: true,
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+      },
+
+      playDrum(baseFreq = 105) {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(baseFreq * 1.9, now);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.48, now + 0.14);
+
+        gain.gain.setValueAtTime(0.82, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.34);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.36);
+
+        const bufferSize = Math.floor(this.ctx.sampleRate * 0.06);
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.25));
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 900;
+        const nGain = this.ctx.createGain();
+        nGain.gain.setValueAtTime(0.32, now);
+        nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+        noise.connect(filter);
+        filter.connect(nGain);
+        nGain.connect(this.ctx.destination);
+        noise.start(now);
+      },
+
+      playCardFlip() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const bufferSize = Math.floor(this.ctx.sampleRate * 0.12);
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * Math.sin((i / bufferSize) * Math.PI);
+
+        const src = this.ctx.createBufferSource();
+        src.buffer = buffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.setValueAtTime(1400, now);
+        filter.frequency.exponentialRampToValueAtTime(420, now + 0.12);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+        src.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        src.start(now);
+      },
+
+      // Som sutil de pena / máquina de escrever da Bruxa
+      playTypeTick() {
+        if (!this.enabled) return;
+        if (!this.ctx || this.ctx.state !== 'running') return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(340 + Math.random() * 110, now);
+        gain.gain.setValueAtTime(0.032, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.028);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.03);
+      },
+
+      playKayaChord() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const freqs = [146.83, 220.0, 261.63, 329.63, 440.0];
+        freqs.forEach((f, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = idx % 2 === 0 ? 'triangle' : 'sine';
+          osc.frequency.setValueAtTime(f, now + idx * 0.035);
+
+          gain.gain.setValueAtTime(0.001, now + idx * 0.035);
+          gain.gain.linearRampToValueAtTime(0.15, now + idx * 0.035 + 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 1.65);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + idx * 0.035);
+          osc.stop(now + 1.7);
+        });
+      },
+
+      playTick() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(620, now);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.06);
+      },
+    };
+
+    /* =========================================================================
+       3. UTILITÁRIOS (TOAST, VIBRAÇÃO, WAKE LOCK, DETECTOR DE URL INTELIGENTE)
+    ========================================================================= */
+    function showToast(msg, duration = 3500) {
+      const container = document.getElementById('toast-container');
+      const div = document.createElement('div');
+      div.className = 'toast-msg';
+      div.textContent = msg;
+      container.appendChild(div);
+      setTimeout(() => {
+        div.style.opacity = '0';
+        div.style.transition = 'opacity 0.3s';
+        setTimeout(() => div.remove(), 300);
+      }, duration);
+    }
+
+    function vibrateMobile(pattern = 90) {
+      if (navigator.vibrate) {
+        try { navigator.vibrate(pattern); } catch (e) {}
+      }
+    }
+
+    async function requestWakeLock() {
+      if ('wakeLock' in navigator) {
+        try { await navigator.wakeLock.request('screen'); } catch (e) {}
+      }
+    }
+
+    function randomItem(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function generateRoomCode() {
+      const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+      let code = '';
+      for (let i = 0; i < 4; i++) code += letters[Math.floor(Math.random() * letters.length)];
+      return code;
+    }
+
+    function drawTwoRealmEmojis() {
+      const shuffled = [...REALMS].sort(() => Math.random() - 0.5);
+      return [randomItem(shuffled[0].emojis), randomItem(shuffled[1].emojis)];
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // Detector Inteligente de URL (GitHub Pages / Netlify / Vercel vs Google Sites iframe / file://)
+    function isEmbeddedOrLocal() {
+      let inIframe = false;
+      try { inIframe = window.self !== window.top; } catch (e) { inIframe = true; }
+      const host = window.location.hostname || '';
+      const isGoogleEmbed = host.includes('googleusercontent.com') || host.includes('gstatic.com');
+      const isFile = window.location.protocol === 'file:';
+      return inIframe || isGoogleEmbed || isFile;
+    }
+
+    function getPublicInviteUrl(roomCode) {
+      const savedUrl = (() => {
+        try { return (localStorage.getItem('kukukaya_public_url') || '').trim(); } catch (e) { return ''; }
+      })();
+
+      if (!isEmbeddedOrLocal()) {
+        // GitHub Pages, Netlify, Vercel, servidor próprio: 100% automático
+        const cleanBase = window.location.origin + window.location.pathname;
+        return `${cleanBase}?sala=${encodeURIComponent(roomCode)}`;
+      }
+
+      if (savedUrl) {
+        const cleanSaved = savedUrl.split('?')[0].split('#')[0];
+        return `${cleanSaved}?sala=${encodeURIComponent(roomCode)}`;
+      }
+
+      // Tenta usar referrer se vier de um domínio real (ex: sites.google.com)
+      if (document.referrer && !document.referrer.includes('googleusercontent.com')) {
+        const refBase = document.referrer.split('?')[0].split('#')[0];
+        return `${refBase}?sala=${encodeURIComponent(roomCode)}`;
+      }
+
+      const fallbackBase = window.location.href.split('?')[0].split('#')[0];
+      return `${fallbackBase}?sala=${encodeURIComponent(roomCode)}`;
+    }
+
+    /* =========================================================================
+       4. MOTOR DE DIGITAÇÃO LETRA POR LETRA (INTERPRETAÇÃO DA BRUXA)
+    ========================================================================= */
+    const Typewriter = {
+      timer: null,
+      activeEl: null,
+      activeText: '',
+
+      stopAndFlush() {
+        if (this.timer) {
+          clearInterval(this.timer);
+          this.timer = null;
+          if (this.activeEl) {
+            this.activeEl.textContent = this.activeText;
+          }
+        }
+        this.activeEl = null;
+        this.activeText = '';
+      },
+
+      typeInto(el, text, speedMs = 28, onDone = null) {
+        this.stopAndFlush();
+        this.activeEl = el;
+        this.activeText = text;
+        el.textContent = '';
+
+        const cursor = document.getElementById('interp-cursor');
+        cursor.classList.remove('hidden');
+
+        let i = 0;
+        this.timer = setInterval(() => {
+          if (i >= text.length) {
+            clearInterval(this.timer);
+            this.timer = null;
+            this.activeEl = null;
+            this.activeText = '';
+            if (onDone) onDone();
+            return;
+          }
+          const ch = text[i];
+          el.textContent += ch;
+          if (ch !== ' ' && i % 2 === 0) SoundFX.playTypeTick();
+          i++;
+        }, speedMs);
+      }
+    };
+
+    /* =========================================================================
+       5. GERADOR DE CARTA 9:16 EM CANVAS (1080x1920 PNG — 3 MINI-CARTAS TARÔ)
+    ========================================================================= */
+    function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 6) {
+      const words = String(text).split(/\s+/);
+      let line = '';
+      const lines = [];
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line ? line + ' ' + words[n] : words[n];
+        if (ctx.measureText(testLine).width > maxWidth && line) {
+          lines.push(line);
+          line = words[n];
+          if (lines.length >= maxLines - 1) break;
+        } else {
+          line = testLine;
+        }
+      }
+      if (line) lines.push(line);
+      lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineHeight));
+      return y + lines.length * lineHeight;
+    }
+
+    // Desenho vetorial nativo no Canvas para o símbolo da Carta da Bruxa (sem risco de taint)
+    function drawWitchMotifCanvas(ctx, bridgeId, cx, cy, r) {
+      ctx.save();
+      ctx.strokeStyle = '#f4ecd8';
+      ctx.fillStyle = '#d4af37';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      if (bridgeId === 'traicao') {
+        ctx.beginPath(); ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy); ctx.strokeStyle = '#d4af37'; ctx.stroke();
+        ctx.strokeStyle = '#f4ecd8';
+        ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.lineTo(cx + 12, cy); ctx.lineTo(cx, cy + r); ctx.lineTo(cx - 12, cy); ctx.closePath(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx - 26, cy - 18); ctx.lineTo(cx + 26, cy - 18); ctx.stroke();
+      } else if (bridgeId === 'segredo') {
+        ctx.beginPath(); ctx.moveTo(cx - r, cy); ctx.quadraticCurveTo(cx, cy - r * 0.85, cx + r, cy); ctx.quadraticCurveTo(cx, cy + r * 0.85, cx - r, cy); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, r * 0.36, 0, Math.PI * 2); ctx.strokeStyle = '#d4af37'; ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, r * 0.16, 0, Math.PI * 2); ctx.fillStyle = '#f4ecd8'; ctx.fill();
+      } else if (bridgeId === 'sentenca') {
+        ctx.beginPath(); ctx.moveTo(cx, cy - r * 0.8); ctx.lineTo(cx, cy + r * 0.85); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx - r * 0.8, cy - r * 0.45); ctx.lineTo(cx + r * 0.8, cy - r * 0.45); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx - r * 0.65, cy + r * 0.15, 18, 0, Math.PI); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx + r * 0.65, cy + r * 0.15, 18, 0, Math.PI); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx - 24, cy + r * 0.85); ctx.lineTo(cx + 24, cy + r * 0.85); ctx.stroke();
+      } else if (bridgeId === 'pacto') {
+        ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.quadraticCurveTo(cx + 16, cy - r * 0.5, cx, cy - r * 0.35); ctx.quadraticCurveTo(cx - 16, cy - r * 0.5, cx, cy - r); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(cx - r * 0.65, cy - 4); ctx.lineTo(cx + r * 0.65, cy - 4); ctx.quadraticCurveTo(cx + r * 0.45, cy + r * 0.55, cx, cy + r * 0.55); ctx.quadraticCurveTo(cx - r * 0.45, cy + r * 0.55, cx - r * 0.65, cy - 4); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, cy + r * 0.55); ctx.lineTo(cx, cy + r * 0.9); ctx.moveTo(cx - 22, cy + r * 0.9); ctx.lineTo(cx + 22, cy + r * 0.9); ctx.stroke();
+      } else if (bridgeId === 'teimosia') {
+        ctx.beginPath(); ctx.moveTo(cx - 28, cy + r * 0.85); ctx.lineTo(cx - 20, cy - r * 0.75); ctx.lineTo(cx + 20, cy - r * 0.75); ctx.lineTo(cx + 28, cy + r * 0.85); ctx.closePath(); ctx.stroke();
+        ctx.strokeStyle = '#d4af37';
+        ctx.beginPath(); ctx.moveTo(cx + 4, cy - r * 0.7); ctx.lineTo(cx - 8, cy - 6); ctx.lineTo(cx + 8, cy + 12); ctx.lineTo(cx - 6, cy + 38); ctx.stroke();
+      } else if (bridgeId === 'espelho') {
+        ctx.beginPath(); ctx.ellipse(cx, cy - 6, r * 0.6, r * 0.8, 0, 0, Math.PI * 2); ctx.strokeStyle = '#d4af37'; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, cy + r * 0.75); ctx.lineTo(cx, cy + r); ctx.stroke();
+        ctx.fillStyle = '#d4af37';
+        ctx.beginPath(); ctx.arc(cx, cy - 10, 7, 0, Math.PI * 2); ctx.fill();
+      } else {
+        // exagero (chama)
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - r);
+        ctx.bezierCurveTo(cx + r * 0.85, cy - 10, cx + r * 0.7, cy + r * 0.9, cx, cy + r * 0.9);
+        ctx.bezierCurveTo(cx - r * 0.7, cy + r * 0.9, cx - r * 0.85, cy - 10, cx, cy - r);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(212,175,55,0.5)';
+        ctx.beginPath(); ctx.arc(cx, cy + 16, 18, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function downloadStoryCard(reading) {
+      const canvas = document.getElementById('story-canvas');
+      const ctx = canvas.getContext('2d');
+      const W = 1080, H = 1920;
+
+      // 1. Fundo Azul-Noite
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+      bgGrad.addColorStop(0, '#080a12');
+      bgGrad.addColorStop(0.5, '#111528');
+      bgGrad.addColorStop(1, '#070910');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Lua no topo
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(W / 2, 220, 165, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(244, 236, 216, 0.08)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(212, 175, 55, 0.35)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 8]);
+      ctx.stroke();
+      ctx.restore();
+
+      // Moldura Dupla Xilogravura
+      ctx.strokeStyle = '#d4af37';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(46, 46, W - 92, H - 92);
+      ctx.strokeStyle = 'rgba(212, 175, 55, 0.45)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(64, 64, W - 128, H - 128);
+
+      // Título
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#d4af37';
+      ctx.font = 'bold 64px "Cinzel Decorative", Georgia, serif';
+      ctx.fillText('KUKUKAYA', W / 2, 160);
+
+      ctx.fillStyle = '#f4ecd8';
+      ctx.font = 'italic 30px "Playfair Display", Georgia, serif';
+      ctx.fillText('O Jogo da Bruxa', W / 2, 208);
+
+      // Pergunta Secreta
+      ctx.fillStyle = '#d4af37';
+      ctx.font = 'bold 28px "Space Mono", monospace';
+      ctx.fillText(`A SORTE DE ${reading.targetName.toUpperCase()}`, W / 2, 305);
+
+      ctx.fillStyle = '#f4ecd8';
+      ctx.font = 'italic 42px "Playfair Display", Georgia, serif';
+      wrapCanvasText(ctx, `“${reading.question}”`, W / 2, 368, W - 180, 54, 3);
+
+      // 2. AS 3 MINI-CARTAS VERTICAIS DE TARÔ (2:3 — 276 x 414 px cada)
+      const cW = 276, cH = 414, gap = 36;
+      const startX = (W - (cW * 3 + gap * 2)) / 2;
+      const cardY = 525;
+
+      // --- CARTA I (Azul-Noite) ---
+      const x1 = startX;
+      ctx.fillStyle = '#0e1326';
+      ctx.fillRect(x1, cardY, cW, cH);
+      ctx.strokeStyle = '#d4af37';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(x1, cardY, cW, cH);
+      ctx.strokeStyle = 'rgba(212,175,55,0.45)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x1 + 12, cardY + 12, cW - 24, cH - 24);
+
+      ctx.fillStyle = '#d4af37';
+      ctx.font = 'bold 28px "Cinzel", Georgia, serif';
+      ctx.fillText('I', x1 + cW / 2, cardY + 52);
+
+      // Medalhão
+      ctx.beginPath();
+      ctx.arc(x1 + cW / 2, cardY + 190, 92, 0, Math.PI * 2);
+      ctx.fillStyle = '#080b16';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(212,175,55,0.6)';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      ctx.font = '74px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+      ctx.fillText(`${reading.emojis[0]}${reading.emojis[1]}`, x1 + cW / 2, cardY + 216);
+
+      ctx.fillStyle = '#f4ecd8';
+      ctx.font = 'bold 22px "Cinzel", Georgia, serif';
+      wrapCanvasText(ctx, reading.cardName.toUpperCase(), x1 + cW / 2, cardY + 340, cW - 36, 28, 2);
+
+      // --- CARTA II (Vermelho-Sangue — Bruxa) ---
+      const x2 = startX + cW + gap;
+      const wGrad = ctx.createLinearGradient(x2, cardY, x2, cardY + cH);
+      wGrad.addColorStop(0, '#961e21');
+      wGrad.addColorStop(1, '#470b0d');
+      ctx.fillStyle = wGrad;
+      ctx.fillRect(x2, cardY, cW, cH);
+      ctx.strokeStyle = '#d4af37';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(x2, cardY, cW, cH);
+      ctx.strokeStyle = 'rgba(244,236,216,0.55)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x2 + 12, cardY + 12, cW - 24, cH - 24);
+
+      ctx.fillStyle = '#f4ecd8';
+      ctx.font = 'bold 28px "Cinzel", Georgia, serif';
+      ctx.fillText('II', x2 + cW / 2, cardY + 52);
+
+      drawWitchMotifCanvas(ctx, reading.bridge.id, x2 + cW / 2, cardY + 185, 62);
+
+      ctx.fillStyle = '#f7df94';
+      ctx.font = 'italic 22px "Playfair Display", Georgia, serif';
+      ctx.fillText(reading.bridge.title, x2 + cW / 2, cardY + 322);
+
+      ctx.fillStyle = '#f4ecd8';
+      ctx.font = 'bold 26px "Cinzel Decorative", Georgia, serif';
+      wrapCanvasText(ctx, reading.bridge.word, x2 + cW / 2, cardY + 362, cW - 30, 30, 2);
+
+      // --- CARTA III (Pergaminho — Destino) ---
+      const x3 = startX + (cW + gap) * 2;
+      ctx.fillStyle = '#f4ecd8';
+      ctx.fillRect(x3, cardY, cW, cH);
+      ctx.strokeStyle = '#161210';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(x3, cardY, cW, cH);
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x3 + 12, cardY + 12, cW - 24, cH - 24);
+
+      ctx.fillStyle = '#2b1e14';
+      ctx.font = 'bold 28px "Cinzel", Georgia, serif';
+      ctx.fillText('III', x3 + cW / 2, cardY + 52);
+
+      const sealObj = DESTINY_SEALS.find(s => s.id === reading.sealId) || DESTINY_SEALS[0];
+      ctx.font = '106px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+      ctx.fillText(sealObj.icon, x3 + cW / 2, cardY + 230);
+
+      ctx.fillStyle = '#161210';
+      ctx.font = 'bold 24px "Cinzel", Georgia, serif';
+      ctx.fillText(sealObj.title.toUpperCase(), x3 + cW / 2, cardY + 355);
+
+      // 3. FAIXA UNIFICADA DA INTERPRETAÇÃO DA BRUXA
+      const boxY = cardY + cH + 62;
+      const boxH = 630;
+      ctx.fillStyle = '#101425';
+      ctx.fillRect(92, boxY, W - 184, boxH);
+      ctx.strokeStyle = '#d4af37';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(92, boxY, W - 184, boxH);
+      ctx.strokeStyle = 'rgba(212,175,55,0.4)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(106, boxY + 14, W - 212, boxH - 28);
+
+      ctx.fillStyle = '#d4af37';
+      ctx.font = 'bold 24px "Space Mono", monospace';
+      ctx.fillText('✦  INTERPRETAÇÃO DA BRUXA  ✦', W / 2, boxY + 64);
+
+      const fullProphecy = `“${reading.startText} ${reading.bridge.word.toUpperCase()} ${reading.endText}”`;
+      ctx.fillStyle = '#f4ecd8';
+      ctx.font = '46px "Playfair Display", Georgia, serif';
+      wrapCanvasText(ctx, fullProphecy, W / 2, boxY + 150, W - 260, 64, 7);
+
+      // Créditos
+      ctx.fillStyle = 'rgba(244, 236, 216, 0.65)';
+      ctx.font = '24px "Space Mono", monospace';
+      ctx.fillText(
+        `Carta: ${reading.creatorName}  •  Início: ${reading.startAuthorName}  •  Destino: ${reading.endAuthorName}`,
+        W / 2,
+        H - 160
+      );
+
+      ctx.fillStyle = '#d4af37';
+      ctx.font = 'bold 28px "Space Mono", monospace';
+      ctx.fillText('🌙  KUKUKAYA  •  O JOGO DA BRUXA  🌙', W / 2, H - 102);
+
+      try {
+        const link = document.createElement('a');
+        const safeName = reading.targetName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        link.download = `kukukaya-sorte-${safeName || 'bruxa'}.png`;
+        link.href = canvas.toDataURL('image/png');
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        showToast(`Carta 9:16 de ${reading.targetName} salva em PNG!`);
+      } catch (err) {
+        showToast('Não foi possível baixar a imagem neste navegador.');
+      }
+    }
+
+    /* =========================================================================
+       6. HOST (TV) — FLUXO CIRCULAR & MESA DE TARÔ
+    ========================================================================= */
+    const TV = {
+      peer: null,
+      roomCode: '',
+      round: 1,
+      phase: 'lobby',
+      phaseStartedAt: 0,
+      transitionPending: false,
+      minWritingPhaseMs: 3500,
+      players: [],
+      cards: [],
+      timer: null,
+      timeLeft: 0,
+      revealCardIdx: 0,
+      revealTempo: 0, // 0=abertura, 1=Presságio, 2=Bruxa, 3=Destino
+      autoReveal: false,
+      autoRevealTimer: null,
+      phaseController: null,
+
+      startHost() {
+        if (window.KukukayaState) {
+          this.phaseController = new window.KukukayaState.TvPhaseController({
+            lobby: 'tv-view-lobby',
+            step1: 'tv-view-writing',
+            step2: 'tv-view-writing',
+            step3: 'tv-view-writing',
+            reveal: 'tv-view-reveal',
+            voting: 'tv-view-voting',
+            results: 'tv-view-results'
+          });
+          this.phaseController.onChange = (phase) => { this.phase = phase; };
+        }
+
+        SoundFX.init();
+        document.getElementById('screen-landing').classList.add('hidden');
+        document.getElementById('screen-tv').classList.remove('hidden');
+
+        this.roomCode = generateRoomCode();
+        document.getElementById('tv-room-code-header').textContent = this.roomCode;
+        document.getElementById('tv-room-code-big').textContent = this.roomCode;
+
+        // Mostra botão de configurar link apenas se estiver em iframe (Google Sites) ou file://
+        if (isEmbeddedOrLocal()) {
+          document.getElementById('btn-config-url').classList.remove('hidden');
+        }
+
+        this.renderQRCode();
+        this.renderLobbySlots();
+        this.initPeer();
+      },
+
+      initPeer() {
+        const statusEl = document.getElementById('tv-peer-status');
+        statusEl.textContent = 'Conectando à rede PeerJS...';
+
+        try {
+          this.peer = new Peer('kukukaya-' + this.roomCode, { debug: 1 });
+        } catch (e) {
+          statusEl.textContent = 'Erro ao iniciar PeerJS. Recarregue a página.';
+          return;
+        }
+
+        this.peer.on('open', () => {
+          statusEl.textContent = '● Portal P2P ativo! Aguardando celulares...';
+        });
+
+        this.peer.on('error', (err) => {
+          if (err.type === 'unavailable-id') {
+            this.roomCode = generateRoomCode();
+            document.getElementById('tv-room-code-header').textContent = this.roomCode;
+            document.getElementById('tv-room-code-big').textContent = this.roomCode;
+            this.renderQRCode();
+            this.initPeer();
+          } else {
+            statusEl.textContent = 'Aviso PeerJS: ' + err.type;
+          }
+        });
+
+        this.peer.on('connection', (conn) => {
+          conn.on('data', (msg) => this.handlePlayerMessage(conn, msg));
+          conn.on('close', () => {
+            const p = this.players.find(pl => pl.conn === conn);
+            if (p) showToast(`${p.name} desconectou momentaneamente.`);
+          });
+        });
+      },
+
+      renderQRCode() {
+        const qrContainer = document.getElementById('tv-qrcode');
+        qrContainer.innerHTML = '';
+        const inviteUrl = getPublicInviteUrl(this.roomCode);
+
+        const hintEl = document.getElementById('tv-qr-hint');
+        hintEl.textContent = inviteUrl;
+
+        try {
+          new QRCode(qrContainer, {
+            text: inviteUrl,
+            width: 192,
+            height: 192,
+            colorDark: '#090b14',
+            colorLight: '#f4ecd8',
+            correctLevel: QRCode.CorrectLevel.M
+          });
+        } catch (e) {
+          qrContainer.innerHTML = `<p class="text-xs text-amber-300">Código: ${this.roomCode}</p>`;
+        }
+      },
+
+      sendToPlayer(player, payload) {
+        if (player && !player.isBot && player.conn && player.conn.open) {
+          try { player.conn.send(payload); } catch (e) {}
+        }
+      },
+
+      broadcast(payload) {
+        this.players.forEach(p => this.sendToPlayer(p, payload));
+      },
+
+      handlePlayerMessage(conn, msg) {
+        if (!msg || !msg.type) return;
+
+        const senderIdx = this.players.findIndex(p => p.conn === conn);
+
+        if (msg.type === 'join') {
+          const cleanName = (msg.name || 'Viajante').trim().slice(0, 16) || 'Viajante';
+          const existing = this.players.find(p => !p.isBot && p.name.toLowerCase() === cleanName.toLowerCase());
+          if (existing) {
+            if (existing.id !== conn.peer) {
+              conn.send({ type: 'error', message: 'Este nome já está sendo usado na mesa.' });
+              return;
+            }
+            existing.conn = conn;
+            const idx = this.players.indexOf(existing);
+            this.sendToPlayer(existing, {
+              type: 'joined',
+              playerIdx: idx,
+              name: existing.name,
+              isLeader: idx === 0,
+              roomCode: this.roomCode
+            });
+            showToast(`${existing.name} reconectou à mesa!`);
+            this.syncSinglePlayer(idx);
+            return;
+          }
+
+          if (this.players.length >= 4) {
+            conn.send({ type: 'error', message: 'A mesa já está cheia (4 jogadores).' });
+            return;
+          }
+
+          const newPlayer = {
+            id: conn.peer,
+            name: cleanName,
+            isBot: false,
+            conn,
+            score: 0,
+            question: '',
+            submitted: false
+          };
+          this.players.push(newPlayer);
+          const idx = this.players.length - 1;
+
+          SoundFX.playCardFlip();
+          this.sendToPlayer(newPlayer, {
+            type: 'joined',
+            playerIdx: idx,
+            name: newPlayer.name,
+            isLeader: idx === 0,
+            roomCode: this.roomCode
+          });
+
+          this.renderLobbySlots();
+          this.notifyLobbyReady();
+        }
+
+        if (msg.type === 'host_start_from_phone') {
+          if (senderIdx === 0 && this.players.length === 4 && this.phase === 'lobby') {
+            this.startRound();
+          }
+        }
+
+        if (msg.type === 'submit_step1' && this.phase === 'step1') {
+          const p = this.players[senderIdx];
+          if (senderIdx < 0 || !p || p.submitted) return;
+          this.cards[senderIdx].cardName = (msg.cardName || '').trim() || randomItem(BOT_CARD_NAMES);
+          p.question = (msg.question || '').trim() || randomItem(SECRET_QUESTIONS);
+          p.submitted = true;
+          SoundFX.playCardFlip();
+          this.updateWritingStatusUI();
+          this.checkAllSubmitted(() => this.startStep2());
+        }
+
+        if (msg.type === 'submit_step2' && this.phase === 'step2') {
+          const p = this.players[senderIdx];
+          if (senderIdx < 0 || !p || p.submitted) return;
+          const cardIdx = (senderIdx + 3) % 4;
+          this.cards[cardIdx].startText = (msg.startText || '').trim() || randomItem(BOT_STARTS);
+          p.submitted = true;
+          SoundFX.playCardFlip();
+          this.updateWritingStatusUI();
+          this.checkAllSubmitted(() => this.startStep3());
+        }
+
+        if (msg.type === 'submit_step3' && this.phase === 'step3') {
+          const p = this.players[senderIdx];
+          if (senderIdx < 0 || !p || p.submitted) return;
+          const cardIdx = (senderIdx + 2) % 4;
+          this.cards[cardIdx].endText = (msg.endText || '').trim() || randomItem(BOT_ENDS);
+          if (msg.sealId && DESTINY_SEALS.some(s => s.id === msg.sealId)) {
+            this.cards[cardIdx].sealId = msg.sealId;
+          }
+          p.submitted = true;
+          SoundFX.playCardFlip();
+          this.updateWritingStatusUI();
+          this.checkAllSubmitted(() => this.startRevealPhase());
+        }
+
+        if (msg.type === 'submit_vote' && this.phase === 'voting') {
+          const p = this.players[senderIdx];
+          if (senderIdx < 0 || !p || p.submitted) return;
+          const votedCard = this.cards[msg.cardIdx];
+          if (votedCard && votedCard.endAuthorIdx !== senderIdx) {
+            votedCard.votes += 1;
+            p.submitted = true;
+            SoundFX.playCardFlip();
+            const totalVotes = this.players.filter(pl => pl.submitted).length;
+            document.getElementById('tv-votes-count').textContent = totalVotes;
+            this.checkAllSubmitted(() => this.finishVoting());
+          }
+        }
+      },
+
+      syncSinglePlayer(idx) {
+        const p = this.players[idx];
+        if (!p || p.isBot) return;
+        if (this.phase === 'lobby') this.notifyLobbyReady();
+        else if (this.phase === 'step1' && !p.submitted)
+          this.sendToPlayer(p, { type: 'phase_step1', emojis: this.cards[idx].emojis, timeLeft: this.timeLeft });
+        else if (this.phase === 'step2' && !p.submitted) {
+          const c = this.cards[(idx + 3) % 4];
+          this.sendToPlayer(p, { type: 'phase_step2', emojis: c.emojis, cardName: c.cardName, timeLeft: this.timeLeft });
+        } else if (this.phase === 'step3' && !p.submitted) {
+          const c = this.cards[(idx + 2) % 4];
+          this.sendToPlayer(p, { type: 'phase_step3', emojis: c.emojis, cardName: c.cardName, startText: c.startText, bridgeId: c.bridge.id, timeLeft: this.timeLeft });
+        } else if (this.phase === 'reveal')
+          this.sendToPlayer(p, { type: 'phase_wait', title: 'Olhe para a TV!', sub: 'A Bruxa está virando as cartas!' });
+        else if (this.phase === 'voting' && !p.submitted)
+          this.sendToPlayer(p, { type: 'phase_vote', readings: this.getReadingsPayload(), myIdx: idx });
+        else if (this.phase === 'results')
+          this.sendToPlayer(p, { type: 'phase_gallery', readings: this.getReadingsPayload() });
+      },
+
+      fillWithBots() {
+        SoundFX.init();
+        let botIdx = 0;
+        while (this.players.length < 4) {
+          const name = BOT_NAMES[botIdx % BOT_NAMES.length];
+          botIdx++;
+          if (this.players.some(p => p.name.startsWith(name))) continue;
+          this.players.push({ id: 'bot-' + Math.random().toString(36).slice(2, 7), name: name + ' (Bot)', isBot: true, conn: null, score: 0, question: '', submitted: false });
+        }
+        this.renderLobbySlots();
+        this.notifyLobbyReady();
+        showToast('Círculo completo com Bots! Pronto para iniciar o ritual.');
+      },
+
+      renderLobbySlots() {
+        const container = document.getElementById('tv-lobby-slots');
+        container.innerHTML = '';
+        for (let i = 0; i < 4; i++) {
+          const p = this.players[i];
+          const div = document.createElement('div');
+          if (p) {
+            div.className = 'xilo-card-tarot rounded-xl p-4 text-center anim-fade';
+            div.innerHTML = `<div class="text-3xl mb-2">${p.isBot ? '🤖' : '🧙'}</div><div class="font-serif-drama font-bold text-amber-300 text-sm truncate">${escapeHtml(p.name)}</div><div class="text-[10px] font-mono-code text-emerald-400 uppercase mt-1">Conectado</div>`;
+          } else {
+            div.className = 'rounded-xl border-2 border-dashed border-amber-500/25 bg-[#111527]/50 p-4 text-center flex flex-col items-center justify-center min-h-[122px]';
+            div.innerHTML = `<div class="text-2xl opacity-30 mb-1">✦</div><div class="text-xs font-mono-code text-[#f4ecd8]/40">Lugar ${i + 1}</div>`;
+          }
+          container.appendChild(div);
+        }
+        const btnStart = document.getElementById('btn-start-ritual');
+        btnStart.textContent = `🕯️ Começar Ritual (${this.players.length}/4)`;
+        btnStart.disabled = this.players.length < 4;
+      },
+
+      notifyLobbyReady() {
+        this.players.forEach((p, idx) => this.sendToPlayer(p, {
+          type: 'lobby_update', count: this.players.length,
+          canStart: idx === 0 && this.players.length === 4
+        }));
+      },
+
+      showTvView(viewId) {
+        ['tv-view-lobby', 'tv-view-writing', 'tv-view-reveal', 'tv-view-voting', 'tv-view-results'].forEach(id => {
+          document.getElementById(id).classList.add('hidden');
+        });
+        document.getElementById(viewId).classList.remove('hidden');
+      },
+
+      updateWritingStatusUI() {
+        const container = document.getElementById('tv-writing-status');
+        container.innerHTML = '';
+        this.players.forEach(p => {
+          const div = document.createElement('div');
+          div.className = `rounded-xl p-4 border ${p.submitted ? 'bg-emerald-950/40 border-emerald-400/60' : 'bg-[#121629] border-amber-500/25'}`;
+          div.innerHTML = `<div class="text-2xl mb-1">${p.submitted ? '✅' : '✍️'}</div><div class="font-serif-drama font-bold text-sm truncate text-[#f4ecd8]">${escapeHtml(p.name)}</div><div class="text-[11px] font-mono-code mt-1 ${p.submitted ? 'text-emerald-300' : 'text-amber-300/70'}">${p.submitted ? 'Pronto!' : 'Escrevendo...'}</div>`;
+          container.appendChild(div);
+        });
+      },
+
+      startTimer(seconds, onExpire) {
+        clearInterval(this.timer);
+        this.timeLeft = seconds;
+        const el = document.getElementById('tv-timer-display');
+        el.textContent = this.timeLeft;
+        this.broadcast({ type: 'timer_sync', timeLeft: this.timeLeft });
+
+        this.timer = setInterval(() => {
+          this.timeLeft--;
+          el.textContent = Math.max(0, this.timeLeft);
+          if (this.timeLeft <= 5 && this.timeLeft > 0) SoundFX.playTick();
+          if (this.timeLeft % 3 === 0 || this.timeLeft <= 5) {
+            this.broadcast({ type: 'timer_sync', timeLeft: Math.max(0, this.timeLeft) });
+          }
+          if (this.timeLeft <= 0) {
+            clearInterval(this.timer);
+            onExpire();
+          }
+        }, 1000);
+      },
+
+      checkAllSubmitted(nextFn) {
+        if (this.players.every(p => p.submitted) && !this.transitionPending) {
+          this.transitionPending = true;
+          clearInterval(this.timer);
+          const elapsed = Date.now() - this.phaseStartedAt;
+          const remaining = Math.max(600, this.minWritingPhaseMs - elapsed);
+          setTimeout(nextFn, remaining);
+        }
+      },
+
+      setPhase(nextPhase) {
+        if (this.phaseController) {
+          this.phaseController.setPhase(nextPhase);
+        } else {
+          this.phase = nextPhase;
+          this.showTvView(nextPhase === 'lobby' ? 'tv-view-lobby'
+            : nextPhase === 'reveal' ? 'tv-view-reveal'
+            : nextPhase === 'voting' ? 'tv-view-voting'
+            : nextPhase === 'results' ? 'tv-view-results'
+            : 'tv-view-writing');
+        }
+      },
+
+      /* --- PASSO 1 --- */
+      startRound() {
+        SoundFX.init();
+        SoundFX.playDrum(95);
+        this.setPhase('step1');
+        this.phaseStartedAt = Date.now();
+        this.transitionPending = false;
+        document.getElementById('tv-round-badge').textContent = `Rodada ${this.round} • Mesa da Bruxa`;
+
+        const bridges = [...WITCH_CARDS].sort(() => Math.random() - 0.5).slice(0, 4);
+        const seals = [...DESTINY_SEALS].sort(() => Math.random() - 0.5).slice(0, 4);
+
+        this.cards = [0, 1, 2, 3].map(i => ({
+          idx: i,
+          emojis: drawTwoRealmEmojis(),
+          creatorIdx: i,
+          cardName: '',
+          startAuthorIdx: (i + 1) % 4,
+          startText: '',
+          bridge: bridges[i],
+          endAuthorIdx: (i + 2) % 4,
+          endText: '',
+          sealId: seals[i].id,
+          targetIdx: (i + 3) % 4,
+          votes: 0
+        }));
+
+        this.players.forEach(p => { p.submitted = false; p.question = ''; });
+
+        document.getElementById('tv-step-tag').textContent = 'Passo 1 de 4';
+        document.getElementById('tv-step-title').textContent = 'O Presságio';
+        document.getElementById('tv-step-desc').textContent =
+          'No celular: batize sua carta de tarô e faça sua Pergunta Secreta à Bruxa.';
+        this.updateWritingStatusUI();
+
+        this.players.forEach((p, idx) => {
+          if (p.isBot) {
+            setTimeout(() => {
+              if (this.phase !== 'step1' || p.submitted) return;
+              this.cards[idx].cardName = BOT_CARD_NAMES[(idx + this.round * 2) % BOT_CARD_NAMES.length];
+              p.question = randomItem(SECRET_QUESTIONS);
+              p.submitted = true;
+              this.updateWritingStatusUI();
+              this.checkAllSubmitted(() => this.startStep2());
+            }, 850 + idx * 380);
+          } else {
+            this.sendToPlayer(p, {
+              type: 'phase_step1',
+              emojis: this.cards[idx].emojis,
+              timeLeft: STEP_DURATION
+            });
+          }
+        });
+
+        this.startTimer(STEP_DURATION, () => {
+          this.players.forEach((p, idx) => {
+            if (!p.submitted) {
+              this.cards[idx].cardName = randomItem(BOT_CARD_NAMES);
+              p.question = randomItem(SECRET_QUESTIONS);
+              p.submitted = true;
+            }
+          });
+          showToast('Tempo esgotado! A Bruxa completou as cartas pendentes.');
+          this.startStep2();
+        });
+      },
+
+      /* --- PASSO 2 --- */
+      startStep2() {
+        SoundFX.playDrum(100);
+        this.setPhase('step2');
+        this.phaseStartedAt = Date.now();
+        this.transitionPending = false;
+        this.players.forEach(p => { p.submitted = false; });
+
+        document.getElementById('tv-step-tag').textContent = 'Passo 2 de 4';
+        document.getElementById('tv-step-title').textContent = 'O Início';
+        document.getElementById('tv-step-desc').textContent =
+          'As cartas giraram no círculo! Escreva uma frase livre sobre a carta que caiu no seu celular.';
+        this.updateWritingStatusUI();
+
+        this.players.forEach((p, idx) => {
+          const cardIdx = (idx + 3) % 4;
+          const c = this.cards[cardIdx];
+          if (p.isBot) {
+            setTimeout(() => {
+              if (this.phase !== 'step2' || p.submitted) return;
+              c.startText = BOT_STARTS[(idx + this.round) % BOT_STARTS.length];
+              p.submitted = true;
+              this.updateWritingStatusUI();
+              this.checkAllSubmitted(() => this.startStep3());
+            }, 850 + idx * 380);
+          } else {
+            this.sendToPlayer(p, {
+              type: 'phase_step2',
+              emojis: c.emojis,
+              cardName: c.cardName,
+              timeLeft: STEP_DURATION
+            });
+          }
+        });
+
+        this.startTimer(STEP_DURATION, () => {
+          this.players.forEach((p, idx) => {
+            if (!p.submitted) {
+              const cardIdx = (idx + 3) % 4;
+              this.cards[cardIdx].startText = randomItem(BOT_STARTS);
+              p.submitted = true;
+            }
+          });
+          showToast('Tempo esgotado! Seguindo para as Cartas da Bruxa.');
+          this.startStep3();
+        });
+      },
+
+      /* --- PASSO 3 --- */
+      startStep3() {
+        SoundFX.playDrum(92);
+        this.setPhase('step3');
+        this.phaseStartedAt = Date.now();
+        this.transitionPending = false;
+        this.players.forEach(p => { p.submitted = false; });
+
+        document.getElementById('tv-step-tag').textContent = 'Passo 3 de 4';
+        document.getElementById('tv-step-title').textContent = 'A Carta da Bruxa';
+        document.getElementById('tv-step-desc').textContent =
+          'A Bruxa baixou uma Ponte em cada profecia! Complete o desfecho e escolha o Selo do Destino.';
+        this.updateWritingStatusUI();
+
+        this.players.forEach((p, idx) => {
+          const cardIdx = (idx + 2) % 4;
+          const c = this.cards[cardIdx];
+          if (p.isBot) {
+            setTimeout(() => {
+              if (this.phase !== 'step3' || p.submitted) return;
+              c.endText = BOT_ENDS[(idx + this.round * 2) % BOT_ENDS.length];
+              p.submitted = true;
+              this.updateWritingStatusUI();
+              this.checkAllSubmitted(() => this.startRevealPhase());
+            }, 900 + idx * 380);
+          } else {
+            this.sendToPlayer(p, {
+              type: 'phase_step3',
+              emojis: c.emojis,
+              cardName: c.cardName,
+              startText: c.startText,
+              bridgeId: c.bridge.id,
+              timeLeft: STEP_DURATION
+            });
+          }
+        });
+
+        this.startTimer(STEP_DURATION, () => {
+          this.players.forEach((p, idx) => {
+            if (!p.submitted) {
+              const cardIdx = (idx + 2) % 4;
+              this.cards[cardIdx].endText = randomItem(BOT_ENDS);
+              p.submitted = true;
+            }
+          });
+          showToast('Tempo esgotado! Hora da revelação das três cartas!');
+          this.startRevealPhase();
+        });
+      },
+
+      /* --- PASSO 4: MESA DA BRUXA (3 CARTAS 2:3 + DIGITAÇÃO UNIFICADA) --- */
+      startRevealPhase() {
+        clearInterval(this.timer);
+        this.setPhase('reveal');
+        this.phaseStartedAt = Date.now();
+        this.transitionPending = false;
+        this.revealCardIdx = 0;
+        this.revealTempo = 0;
+
+        this.broadcast({
+          type: 'phase_wait',
+          title: 'Olhe para a TV!',
+          sub: 'A Bruxa vai revelar o Presságio, a Carta da Bruxa e o Destino.'
+        });
+
+        this.renderRevealState();
+      },
+
+      advanceReveal() {
+        clearTimeout(this.autoRevealTimer);
+        if (this.revealTempo < 3) {
+          this.revealTempo++;
+          this.renderRevealState();
+        } else if (this.revealCardIdx < 3) {
+          this.revealCardIdx++;
+          this.revealTempo = 0;
+          this.renderRevealState();
+        } else {
+          this.autoReveal = false;
+          document.getElementById('btn-reveal-auto').textContent = '⏱️ Modo Automático: OFF';
+          this.startVotingPhase();
+        }
+      },
+
+      renderRevealState() {
+        if (typeof Typewriter?.stopAndFlush === 'function') Typewriter.stopAndFlush();
+
+        const c = this.cards[this.revealCardIdx];
+        if (!c) return;
+
+        const target = this.players[c.targetIdx];
+        const creator = this.players[c.creatorIdx];
+        const starter = this.players[c.startAuthorIdx];
+        const ender = this.players[c.endAuthorIdx];
+        const seal = DESTINY_SEALS.find(s => s.id === c.sealId) || DESTINY_SEALS[0];
+
+        document.getElementById('tv-reveal-index').textContent = this.revealCardIdx + 1;
+        document.getElementById('tv-reveal-target').textContent = target.name;
+        document.getElementById('tv-reveal-question').textContent = `“${target.question}”`;
+        document.getElementById('card1-emojis').textContent = `${c.emojis[0]} ${c.emojis[1]}`;
+        document.getElementById('card1-title').textContent = c.cardName;
+        document.getElementById('card2-svg').innerHTML = '';
+        document.getElementById('card2-svg').textContent = c.bridge.icon || '✨';
+        document.getElementById('card2-arcana').textContent = c.bridge.title;
+        document.getElementById('card3-svg').innerHTML = '';
+        document.getElementById('card3-svg').textContent = seal.icon || '🔮';
+        document.getElementById('card3-title').textContent = seal.title;
+
+        const slot1 = document.getElementById('tarot-slot-1');
+        const slot2 = document.getElementById('tarot-slot-2');
+        const slot3 = document.getElementById('tarot-slot-3');
+        [slot1, slot2, slot3].forEach(slot => slot.classList.remove('is-flipped', 'just-flipped'));
+        if (this.revealTempo >= 1) slot1.classList.add('is-flipped', 'just-flipped');
+        if (this.revealTempo >= 2) slot2.classList.add('is-flipped', 'just-flipped');
+        if (this.revealTempo >= 3) slot3.classList.add('is-flipped', 'just-flipped');
+
+        document.getElementById('interp-idle').classList.toggle('hidden', this.revealTempo > 0);
+        document.getElementById('interp-part1').textContent = this.revealTempo >= 1 ? `“${c.startText}` : '';
+        document.getElementById('interp-part2').textContent = this.revealTempo >= 2 ? `... ${c.bridge.word.replace(/\.+$/, '')} ...` : '';
+        document.getElementById('interp-part3').textContent = this.revealTempo >= 3 ? `${c.endText}”` : '';
+
+        const credits = document.getElementById('tv-interpretation-credits');
+        if (this.revealTempo >= 3) {
+          credits.textContent = `Carta: ${creator.name}  •  Início: ${starter.name}  •  Destino: ${ender.name}`;
+          credits.classList.remove('hidden');
+        } else {
+          credits.classList.add('hidden');
+        }
+
+        document.getElementById('tv-reveal-tempo-label').textContent =
+          ['Abertura da Consulta', 'Carta I • O Presságio', 'Carta II • A Bruxa', 'Carta III • O Destino'][this.revealTempo];
+
+        const btnNext = document.getElementById('btn-reveal-next');
+        btnNext.textContent = this.revealTempo === 0 ? 'Carta I — Virar o Presságio'
+          : this.revealTempo === 1 ? 'Carta II — Virar a Bruxa'
+          : this.revealTempo === 2 ? 'Carta III — Revelar o Destino'
+          : this.revealCardIdx < 3 ? '➡️ Próxima Tiragem'
+          : '🗳️ Abrir Votação nos Celulares';
+
+        clearTimeout(this.autoRevealTimer);
+        if (this.autoReveal && this.phase === 'reveal') {
+          const delay = this.revealTempo === 3 ? 5600 : 3400;
+          this.autoRevealTimer = setTimeout(() => this.advanceReveal(), delay);
+        }
+      },
+
+      /* --- PASSO 5: VOTAÇÃO, PLACAR & GALERIA --- */
+      getReadingsPayload() {
+        return this.cards.map(c => ({
+          idx: c.idx,
+          emojis: c.emojis,
+          cardName: c.cardName,
+          startText: c.startText,
+          bridge: { id: c.bridge.id, title: c.bridge.title, word: c.bridge.word, icon: c.bridge.icon || '✨' },
+          endText: c.endText,
+          sealId: c.sealId,
+          targetName: this.players[c.targetIdx].name,
+          question: this.players[c.targetIdx].question,
+          creatorName: this.players[c.creatorIdx].name,
+          startAuthorName: this.players[c.startAuthorIdx].name,
+          endAuthorName: this.players[c.endAuthorIdx].name,
+          endAuthorIdx: c.endAuthorIdx,
+          votes: c.votes
+        }));
+      },
+
+      startVotingPhase() {
+        Typewriter.stopAndFlush();
+        this.setPhase('voting');
+        this.phaseStartedAt = Date.now();
+        this.transitionPending = false;
+        this.players.forEach(p => { p.submitted = false; });
+        this.cards.forEach(c => { c.votes = 0; });
+
+        document.getElementById('tv-votes-count').textContent = '0';
+        const readings = this.getReadingsPayload();
+
+        const grid = document.getElementById('tv-voting-grid');
+        grid.innerHTML = '';
+        readings.forEach(r => {
+          const seal = DESTINY_SEALS.find(s => s.id === r.sealId) || DESTINY_SEALS[0];
+          const el = document.createElement('div');
+          el.className = 'xilo-card-tarot rounded-xl p-4 flex flex-col justify-between';
+          el.innerHTML = `
+            <div>
+              <div class="flex items-center justify-between text-xs font-mono-code text-amber-300/85 mb-1">
+                <span>Sorte de ${escapeHtml(r.targetName)}</span>
+                <span class="text-base">${r.emojis[0]}${r.emojis[1]} → ${seal.icon}</span>
+              </div>
+              <p class="text-xs italic text-[#f4ecd8]/65 mb-1.5">“${escapeHtml(r.question)}”</p>
+              <p class="font-serif-drama text-sm text-[#f4ecd8] leading-snug">
+                “${escapeHtml(r.startText)}
+                <span class="inline-block px-2 py-0.5 mx-1 rounded bg-[#8f1d20] text-amber-200 font-mono-code text-xs font-bold">${escapeHtml(r.bridge.word)}</span>
+                ${escapeHtml(r.endText)}”
+              </p>
+            </div>
+            <div class="text-[11px] font-mono-code text-amber-300/60 mt-3 pt-2 border-t border-amber-500/20">
+              ${escapeHtml(r.cardName)} • ${escapeHtml(r.bridge.title)} • ${escapeHtml(seal.title)}
+            </div>
+          `;
+          grid.appendChild(el);
+        });
+
+        this.players.forEach((p, idx) => {
+          if (p.isBot) {
+            setTimeout(() => {
+              if (this.phase !== 'voting' || p.submitted) return;
+
+              const valid = this.cards.filter(c => c.endAuthorIdx !== idx);
+              if (valid.length) randomItem(valid).votes += 1;
+              p.submitted = true;
+              const totalVotes = this.players.filter(pl => pl.submitted).length;
+              document.getElementById('tv-votes-count').textContent = totalVotes;
+              this.checkAllSubmitted(() => this.finishVoting());
+            }, 1000 + idx * 450);
+          } else {
+            this.sendToPlayer(p, { type: 'phase_vote', readings, myIdx: idx });
+          }
+        });
+      },
+
+      finishVoting() {
+        this.setPhase('results');
+        SoundFX.playKayaChord();
+
+        const maxVotes = Math.max(...this.cards.map(c => c.votes));
+        const winners = this.cards.filter(c => c.votes === maxVotes);
+
+        winners.forEach(w => {
+          this.players[w.startAuthorIdx].score += 100;
+          this.players[w.endAuthorIdx].score += 100;
+        });
+
+        const readings = this.getReadingsPayload();
+        const top = readings[winners[0].idx];
+
+        document.getElementById('tv-winner-banner').innerHTML = `
+          <div class="text-xs font-mono-code uppercase text-amber-300 mb-1">
+            A Sorte de ${escapeHtml(top.targetName)} • ${top.votes} voto(s) ${winners.length > 1 ? '(Empate!)' : ''}
+          </div>
+          <p class="text-sm italic text-[#f4ecd8]/75 mb-2">“${escapeHtml(top.question)}”</p>
+          <p class="font-serif-drama text-lg sm:text-2xl text-[#f4ecd8]">
+            “${escapeHtml(top.startText)}
+            <span class="text-amber-300 font-ritual mx-1">${escapeHtml(top.bridge.word)}</span>
+            ${escapeHtml(top.endText)}”
+          </p>
+          <div class="text-xs font-mono-code text-emerald-300 mt-3">
+            +100 pts para ${escapeHtml(top.startAuthorName)} (Início) e ${escapeHtml(top.endAuthorName)} (Destino)
+          </div>
+        `;
+
+        const sb = document.getElementById('tv-scoreboard');
+        sb.innerHTML = '';
+        [...this.players].sort((a, b) => b.score - a.score).forEach((p, rank) => {
+          const card = document.createElement('div');
+          card.className = `rounded-xl p-3 text-center border ${
+            rank === 0 ? 'bg-amber-500/15 border-amber-400' : 'bg-[#121629] border-amber-500/25'
+          }`;
+          card.innerHTML = `
+            <div class="text-xs font-mono-code text-amber-300/80">#${rank + 1}</div>
+            <div class="font-serif-drama font-bold text-base truncate text-[#f4ecd8]">${escapeHtml(p.name)}</div>
+            <div class="font-mono-code text-xl font-bold text-amber-300 mt-1">${p.score} pts</div>
+          `;
+          sb.appendChild(card);
+        });
+
+        const gal = document.getElementById('tv-gallery');
+        gal.innerHTML = '';
+        readings.forEach(r => {
+          const seal = DESTINY_SEALS.find(s => s.id === r.sealId) || DESTINY_SEALS[0];
+          const item = document.createElement('div');
+          item.className = 'xilo-card-tarot rounded-xl p-4 flex flex-col justify-between gap-2';
+          item.innerHTML = `
+            <div>
+              <div class="flex justify-between items-center text-xs font-mono-code text-amber-300">
+                <span class="truncate">${escapeHtml(r.targetName)}</span>
+                <span class="text-lg">${r.emojis[0]}${r.emojis[1]} ${seal.icon}</span>
+              </div>
+              <div class="font-tarot text-xs font-bold text-[#f4ecd8] uppercase mt-1">${escapeHtml(r.cardName)}</div>
+              <p class="text-[11px] text-[#f4ecd8]/75 mt-1 line-clamp-3">
+                ${escapeHtml(r.startText)} <strong>${escapeHtml(r.bridge.word)}</strong> ${escapeHtml(r.endText)}
+              </p>
+            </div>
+          `;
+          const btn = document.createElement('button');
+          btn.className = 'btn-gold w-full py-2.5 rounded-xl text-xs font-mono-code cursor-pointer';
+          btn.textContent = '📸 Baixar Carta 9:16 (PNG para Story)';
+          btn.onclick = () => downloadStoryCard(r);
+          item.appendChild(btn);
+          gal.appendChild(item);
+        });
+
+        this.showTvView('tv-view-results');
+        this.broadcast({ type: 'phase_gallery', readings });
+      },
+
+      newRound() {
+        this.round++;
+        this.setPhase('lobby');
+        this.startRound();
+      }
+    };
+
+    /* =========================================================================
+       7. CLIENTE CELULAR (JOGADOR)
+    ========================================================================= */
+    const Phone = {
+      peer: null,
+      conn: null,
+      roomCode: '',
+      playerIdx: -1,
+      playerName: '',
+      selectedSealId: '',
+
+      openPhoneMode(prefillRoom = '') {
+        document.getElementById('screen-landing').classList.add('hidden');
+        document.getElementById('screen-phone').classList.remove('hidden');
+        const codeInput = document.getElementById('input-room-code');
+        const nameInput = document.getElementById('input-player-name');
+        try {
+          const saved = localStorage.getItem('kukukaya_name');
+                   if (saved) nameInput.value = saved;
+        } catch (e) {}
+        if (prefillRoom) {
+          codeInput.value = prefillRoom.trim().toUpperCase().slice(0, 4);
+          setTimeout(() => nameInput.focus(), 120);
+        }
+      },
+
+      showView(viewId) {
+        ['phone-view-join', 'phone-view-lobby', 'phone-view-step1', 'phone-view-step2', 'phone-view-step3', 'phone-view-wait', 'phone-view-vote', 'phone-view-gallery'].forEach(id => {
+          document.getElementById(id).classList.add('hidden');
+        });
+        document.getElementById(viewId).classList.remove('hidden');
+      },
+
+      renderSealSelector() {
+        const grid = document.getElementById('phone-seal-grid');
+        grid.innerHTML = '';
+        grid.setAttribute('role', 'radiogroup');
+        grid.setAttribute('aria-label', 'Selo do destino');
+        this.selectedSealId = '';
+        DESTINY_SEALS.forEach(seal => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.setAttribute('role', 'radio');
+          btn.setAttribute('aria-pressed', 'false');
+          btn.setAttribute('aria-label', seal.title);
+          btn.className = 'seal-btn rounded-xl p-2 flex flex-col items-center justify-center gap-0.5 cursor-pointer';
+          btn.innerHTML = `<span class="text-xl leading-none" aria-hidden="true">${seal.icon}</span><span class="text-[9px] font-mono-code uppercase truncate w-full text-center">${seal.title}</span>`;
+          btn.onclick = () => {
+            vibrateMobile(30);
+            this.selectedSealId = seal.id;
+            grid.querySelectorAll('.seal-btn').forEach(b => {
+              b.classList.remove('selected');
+              b.setAttribute('aria-pressed', 'false');
+            });
+            btn.classList.add('selected');
+            btn.setAttribute('aria-pressed', 'true');
+          };
+          grid.appendChild(btn);
+        });
+      },
+
+      joinRoom() {
+        SoundFX.init();
+        requestWakeLock();
+        const code = document.getElementById('input-room-code').value.trim().toUpperCase();
+        const name = document.getElementById('input-player-name').value.trim();
+        if (code.length !== 4) return showToast('Digite o código de 4 letras exibido na TV.');
+        if (!name) return showToast('Digite seu nome para entrar na mesa.');
+
+        this.roomCode = code;
+        this.playerName = name;
+        try { localStorage.setItem('kukukaya_name', name); } catch (e) {}
+
+        const btn = document.getElementById('btn-join-room');
+        btn.disabled = true;
+        btn.textContent = 'Conectando à Bruxa...';
+        this.peer = new Peer();
+        this.peer.on('open', () => {
+          this.conn = this.peer.connect('kukukaya-' + code, { reliable: true });
+          this.conn.on('open', () => this.conn.send({ type: 'join', name }));
+          this.conn.on('data', msg => this.handleHostMessage(msg));
+          this.conn.on('error', () => {
+            showToast('Erro de conexão com a TV. Confira o código.');
+            btn.disabled = false;
+            btn.textContent = '🔮 Entrar no Ritual';
+          });
+        });
+        this.peer.on('error', err => {
+          showToast('Sala não encontrada (' + err.type + '). Confira o código na TV.');
+          btn.disabled = false;
+          btn.textContent = '🔮 Entrar no Ritual';
+        });
+      },
+
+      send(payload) {
+        if (this.conn && this.conn.open) this.conn.send(payload);
+      },
+
+      handleHostMessage(msg) {
+        if (!msg || !msg.type) return;
+        if (msg.type === 'error') {
+          showToast(msg.message);
+          const btn = document.getElementById('btn-join-room');
+          btn.disabled = false;
+          btn.textContent = '🔮 Entrar no Ritual';
+          return;
+        }
+        if (msg.type === 'joined') {
+          this.playerIdx = msg.playerIdx;
+          this.playerName = msg.name;
+          document.getElementById('phone-player-badge').textContent = `${msg.name} • Sala ${msg.roomCode}`;
+          vibrateMobile(80);
+          this.showView('phone-view-lobby');
+        }
+        if (msg.type === 'lobby_update') {
+          document.getElementById('phone-lobby-msg').textContent = msg.count < 4
+            ? `${msg.count} de 4 jogadores conectados. Aguardando o círculo fechar...`
+            : 'Os 4 jogadores estão na mesa! O ritual já pode começar.';
+          const wrap = document.getElementById('phone-host-start-wrap');
+          if (msg.canStart) wrap.classList.remove('hidden');
+          else wrap.classList.add('hidden');
+        }
+        if (msg.type === 'timer_sync') {
+          document.getElementById('phone-timer-pill').classList.remove('hidden');
+          document.getElementById('phone-timer-val').textContent = msg.timeLeft;
+        }
+        if (msg.type === 'phase_step1') {
+          vibrateMobile([90, 60, 90]);
+          document.getElementById('phone-s1-emojis').textContent = `${msg.emojis[0]} ${msg.emojis[1]}`;
+          document.getElementById('input-card-name').value = '';
+          document.getElementById('input-secret-question').value = '';
+          document.getElementById('phone-timer-pill').classList.remove('hidden');
+          document.getElementById('phone-timer-val').textContent = msg.timeLeft;
+          this.showView('phone-view-step1');
+        }
+        if (msg.type === 'phase_step2') {
+          vibrateMobile([90, 60, 90]);
+          document.getElementById('phone-s2-emojis').textContent = `${msg.emojis[0]} ${msg.emojis[1]}`;
+          document.getElementById('phone-s2-name').textContent = msg.cardName;
+          document.getElementById('input-start-text').value = '';
+          document.getElementById('phone-timer-pill').classList.remove('hidden');
+          document.getElementById('phone-timer-val').textContent = msg.timeLeft;
+          this.showView('phone-view-step2');
+        }
+        if (msg.type === 'phase_step3') {
+          vibrateMobile([120, 60, 120]);
+          const bridge = WITCH_CARDS.find(w => w.id === msg.bridgeId) || WITCH_CARDS[0];
+          document.getElementById('phone-s3-emojis').textContent = `${msg.emojis[0]} ${msg.emojis[1]}`;
+          document.getElementById('phone-s3-name').textContent = msg.cardName;
+          document.getElementById('phone-s3-start').textContent = `“${msg.startText}”`;
+          document.getElementById('phone-s3-bridge-svg').innerHTML = '';
+          document.getElementById('phone-s3-bridge-svg').textContent = bridge.icon || '✨';
+          document.getElementById('phone-s3-bridge-title').textContent = bridge.title;
+          document.getElementById('phone-s3-bridge-word').textContent = bridge.word;
+          document.getElementById('input-end-text').value = '';
+          document.getElementById('phone-timer-pill').classList.remove('hidden');
+          document.getElementById('phone-timer-val').textContent = msg.timeLeft;
+          this.renderSealSelector();
+          this.showView('phone-view-step3');
+        }
+        if (msg.type === 'phase_wait') {
+          document.getElementById('phone-timer-pill').classList.add('hidden');
+          document.getElementById('phone-wait-title').textContent = msg.title || 'Olhe para a TV!';
+          document.getElementById('phone-wait-sub').textContent = msg.sub || '';
+          this.showView('phone-view-wait');
+        }
+        if (msg.type === 'phase_vote') {
+          vibrateMobile(140);
+          document.getElementById('phone-timer-pill').classList.add('hidden');
+          const list = document.getElementById('phone-vote-list');
+          list.innerHTML = '';
+          msg.readings.forEach(r => {
+            const isMine = r.endAuthorIdx === msg.myIdx;
+            const seal = DESTINY_SEALS.find(s => s.id === r.sealId) || DESTINY_SEALS[0];
+            const btn = document.createElement('button');
+            btn.disabled = isMine;
+            btn.className = `text-left rounded-2xl p-4 border ${isMine ? 'bg-[#101322] border-amber-500/15 opacity-50 cursor-not-allowed' : 'xilo-card-tarot hover:border-amber-300 cursor-pointer active:scale-[0.98]'}`;
+            btn.innerHTML = `<div class="flex justify-between items-center text-xs font-mono-code text-amber-300"><span class="truncate">${escapeHtml(r.targetName)}</span><span class="text-lg">${r.emojis[0]}${r.emojis[1]} ${seal.icon}</span></div><p class="text-xs italic text-[#f4ecd8]/65 mb-1.5">“${escapeHtml(r.question)}”</p><p class="font-serif-drama text-sm text-[#f4ecd8] leading-snug">“${escapeHtml(r.startText)} <strong class="text-amber-300">${escapeHtml(r.bridge.word)}</strong> ${escapeHtml(r.endText)}”</p>${isMine ? '<div class="text-[11px] font-mono-code text-amber-400/75 mt-2">🔒 Você fechou esta profecia</div>' : ''}`;
+            if (!isMine) {
+              btn.onclick = () => {
+                vibrateMobile(60);
+                this.send({ type: 'submit_vote', cardIdx: r.idx });
+                document.getElementById('phone-wait-title').textContent = 'Voto Registrado!';
+                document.getElementById('phone-wait-sub').textContent = 'Olhe para a TV para ver o resultado!';
+                this.showView('phone-view-wait');
+              };
+            }
+            list.appendChild(btn);
+          });
+          this.showView('phone-view-vote');
+        }
+        if (msg.type === 'phase_gallery') {
+          vibrateMobile(100);
+          document.getElementById('phone-timer-pill').classList.add('hidden');
+          const list = document.getElementById('phone-gallery-list');
+          list.innerHTML = '';
+          msg.readings.forEach(r => {
+            const seal = DESTINY_SEALS.find(s => s.id === r.sealId) || DESTINY_SEALS[0];
+            const card = document.createElement('div');
+            card.className = 'xilo-card-tarot rounded-xl p-4';
+            card.innerHTML = `<div class="flex justify-between items-center text-xs font-mono-code text-amber-300"><span>Sorte de ${escapeHtml(r.targetName)}</span><span class="text-lg">${r.emojis[0]}${r.emojis[1]} ${seal.icon}</span></div><p class="text-xs italic text-[#f4ecd8]/70 mb-1">“${escapeHtml(r.question)}”</p><p class="font-serif-drama text-sm text-[#f4ecd8] mb-3">“${escapeHtml(r.startText)} <strong class="text-amber-300">${escapeHtml(r.bridge.word)}</strong> ${escapeHtml(r.endText)}”</p>`;
+            const btn = document.createElement('button');
+            btn.className = 'btn-gold w-full py-2.5 rounded-xl text-xs font-mono-code cursor-pointer';
+            btn.textContent = '📸 Baixar Carta 9:16 (PNG para Story)';
+            btn.onclick = () => downloadStoryCard(r);
+            card.appendChild(btn);
+            list.appendChild(card);
+          });
+          this.showView('phone-view-gallery');
+        }
+      }
+    };
+
+    /* =========================================================================
+       8. EVENT LISTENERS E INICIALIZAÇÃO
+    ========================================================================= */
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('btn-choose-tv').addEventListener('click', () => TV.startHost());
+      document.getElementById('btn-choose-phone').addEventListener('click', () => Phone.openPhoneMode());
+      document.getElementById('btn-back-central').addEventListener('click', () => {
+        if (window.parent !== window) window.parent.postMessage({ type: 'kukukaya:close' }, '*');
+        else {
+          document.getElementById('screen-tv').classList.add('hidden');
+          document.getElementById('screen-phone').classList.add('hidden');
+          document.getElementById('screen-landing').classList.remove('hidden');
+        }
+      });
+      document.getElementById('btn-fill-bots').addEventListener('click', () => TV.fillWithBots());
+      document.getElementById('btn-start-ritual').addEventListener('click', () => TV.startRound());
+      document.getElementById('btn-new-round').addEventListener('click', () => TV.newRound());
+      document.getElementById('btn-reveal-next').addEventListener('click', () => TV.advanceReveal());
+      document.getElementById('btn-reveal-auto').addEventListener('click', event => {
+        TV.autoReveal = !TV.autoReveal;
+        event.currentTarget.textContent = `⏱️ Modo Automático: ${TV.autoReveal ? 'ON' : 'OFF'}`;
+        if (TV.autoReveal) TV.autoRevealTimer = setTimeout(() => TV.advanceReveal(), 2500);
+        else clearTimeout(TV.autoRevealTimer);
+      });
+      document.getElementById('btn-toggle-sound').addEventListener('click', event => {
+        SoundFX.enabled = !SoundFX.enabled;
+        event.currentTarget.innerHTML = `<span id="sound-icon">${SoundFX.enabled ? '🥁' : '🔕'}</span> Som: ${SoundFX.enabled ? 'ON' : 'OFF'}`;
+      });
+      document.getElementById('btn-copy-link').addEventListener('click', () => {
+        const inviteUrl = getPublicInviteUrl(TV.roomCode);
+        const tmp = document.createElement('textarea');
+        tmp.value = inviteUrl;
+        document.body.appendChild(tmp);
+        tmp.select();
+        try { document.execCommand('copy'); showToast('Link da sala copiado!'); }
+        catch (err) { showToast('Código da sala: ' + TV.roomCode); }
+        tmp.remove();
+      });
+
+      const modalUrl = document.getElementById('modal-url-config');
+      const inputCustomUrl = document.getElementById('input-custom-url');
+      document.getElementById('btn-config-url').addEventListener('click', () => {
+        try { inputCustomUrl.value = localStorage.getItem('kukukaya_public_url') || ''; } catch (e) {}
+        modalUrl.classList.remove('hidden');
+        setTimeout(() => inputCustomUrl.focus(), 100);
+      });
+      document.getElementById('btn-cancel-url').addEventListener('click', () => modalUrl.classList.add('hidden'));
+      document.getElementById('btn-save-url').addEventListener('click', () => {
+        const val = inputCustomUrl.value.trim();
+        try {
+          if (val) localStorage.setItem('kukukaya_public_url', val);
+          else localStorage.removeItem('kukukaya_public_url');
+        } catch (e) {}
+        modalUrl.classList.add('hidden');
+        TV.renderQRCode();
+        showToast('QR Code atualizado com o link do seu site!');
+      });
+
+      document.getElementById('btn-join-room').addEventListener('click', () => Phone.joinRoom());
+      document.getElementById('btn-phone-back').addEventListener('click', () => {
+        document.getElementById('screen-phone').classList.add('hidden');
+        document.getElementById('screen-landing').classList.remove('hidden');
+      });
+      document.getElementById('btn-phone-start-ritual').addEventListener('click', () => Phone.send({ type: 'host_start_from_phone' }));
+      document.getElementById('btn-roll-question').addEventListener('click', () => {
+        vibrateMobile(40);
+        document.getElementById('input-secret-question').value = randomItem(SECRET_QUESTIONS);
+      });
+      document.getElementById('btn-submit-step1').addEventListener('click', () => {
+        const cardName = document.getElementById('input-card-name').value.trim();
+        const question = document.getElementById('input-secret-question').value.trim();
+        if (!cardName) return showToast('Dê um nome para sua carta de tarô!');
+        if (!question) return showToast('Escreva ou sorteie sua pergunta secreta!');
+        vibrateMobile(60);
+        Phone.send({ type: 'submit_step1', cardName, question });
+        document.getElementById('phone-wait-title').textContent = 'Presságio Enviado!';
+        document.getElementById('phone-wait-sub').textContent = 'Aguardando os outros jogadores do círculo...';
+        Phone.showView('phone-view-wait');
+      });
+      document.getElementById('btn-submit-step2').addEventListener('click', () => {
+        const startText = document.getElementById('input-start-text').value.trim();
+        if (!startText) return showToast('Escreva uma frase inicial sobre a carta!');
+        vibrateMobile(60);
+        Phone.send({ type: 'submit_step2', startText });
+        document.getElementById('phone-wait-title').textContent = 'Início Enviado!';
+        document.getElementById('phone-wait-sub').textContent = 'A Bruxa já vai baixar a Ponte...';
+        Phone.showView('phone-view-wait');
+      });
+      document.getElementById('btn-submit-step3').addEventListener('click', () => {
+        const endText = document.getElementById('input-end-text').value.trim();
+        if (!endText) return showToast('Escreva o fechamento após a Ponte!');
+        vibrateMobile(60);
+        Phone.send({ type: 'submit_step3', endText, sealId: Phone.selectedSealId || null });
+        document.getElementById('phone-wait-title').textContent = 'Destino Selado!';
+        document.getElementById('phone-wait-sub').textContent = 'Prepare-se e olhe para a TV!';
+        Phone.showView('phone-view-wait');
+      });
+
+      const params = new URLSearchParams(window.location.search);
+      let roomParam = params.get('sala') || params.get('room');
+      if (!roomParam && window.location.hash) {
+        const match = window.location.hash.match(/sala=([A-Za-z0-9]{4})/i);
+        if (match) roomParam = match[1];
+      }
+      if (roomParam) {
+        Phone.openPhoneMode(roomParam);
+      } else {
+        document.getElementById('btn-choose-tv')?.focus();
+      }
+
+      window.addEventListener('keydown', event => {
+        if (event.key !== 'Escape' && event.key !== 'BrowserBack' && event.key !== 'XF86Back') return;
+        if (!modalUrl.classList.contains('hidden')) {
+          modalUrl.classList.add('hidden');
+          return;
+        }
+        if (window.parent && window.parent !== window) {
+          const targetOrigin = window.location.origin === 'null' ? '*' : window.location.origin;
+          window.parent.postMessage({ type: 'kukukaya:close' }, targetOrigin);
+        }
+      });
+
+      window.addEventListener('message', event => {
+        if (event.source !== window.parent) return;
+        if (event.origin !== window.location.origin && event.origin !== 'null') return;
+        if (event.data?.type === 'kukukaya:close') {
+          document.getElementById('screen-tv').classList.add('hidden');
+          document.getElementById('screen-phone').classList.add('hidden');
+          document.getElementById('screen-landing').classList.remove('hidden');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
