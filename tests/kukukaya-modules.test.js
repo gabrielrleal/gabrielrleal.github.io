@@ -9,7 +9,7 @@ test('data.js expõe baralhos válidos e sem IDs duplicados', async () => {
   assert.ok(Array.isArray(data.DESTINY_SEALS) && data.DESTINY_SEALS.length > 0);
   assert.ok(Array.isArray(data.SECRET_QUESTIONS) && data.SECRET_QUESTIONS.length > 0);
   assert.equal(data.BOT_NAMES.length, 4);
-  assert.ok(typeof data.STEP_DURATION === 'number' && data.STEP_DURATION > 0);
+  assert.equal(data.STEP_DURATION, 90);
 
   const witchIds = new Set(data.WITCH_CARDS.map(c => c.id));
   assert.equal(witchIds.size, data.WITCH_CARDS.length);

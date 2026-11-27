@@ -250,4 +250,4 @@ export const BOT_ENDS = [
   'até o Wi-Fi caiu de vergonha alheia na mesma hora.'
 ];
 
-export const STEP_DURATION = 45;
+export const STEP_DURATION = 90;
